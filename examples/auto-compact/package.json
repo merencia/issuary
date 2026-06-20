@@ -1,0 +1,19 @@
+{
+  "name": "lore-auto-compact",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example auto-compaction worker for lore. NOT part of the @merencia/lore package.",
+  "type": "module",
+  "bin": {
+    "lore-auto-compact": "./auto-compact.mjs"
+  },
+  "scripts": {
+    "start": "node auto-compact.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0"
+  }
+}
