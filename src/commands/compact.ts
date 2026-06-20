@@ -25,6 +25,19 @@ export function parseTarget(target: string): CompactTarget {
   return { fullName: match[1], number: Number.parseInt(match[2], 10) };
 }
 
+/**
+ * Parses the `--limit <n>` option value into a positive integer.
+ *
+ * @throws {CompactCommandError} When the value is not a positive integer.
+ */
+export function parseLimit(value: string): number {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isInteger(n) || n < 1 || String(n) !== value.trim()) {
+    throw new CompactCommandError(`Invalid --limit "${value}". Expected a positive integer.`);
+  }
+  return n;
+}
+
 /** Options for {@link runCompactSet}. */
 export interface CompactSetOptions {
   /** Path to the compact file to read. */
@@ -110,6 +123,12 @@ export interface CompactListOptions {
   pending?: boolean;
   /** Restrict to a single repo, as `owner/repo`. */
   repo?: string;
+  /**
+   * Cap the number of returned items. Applied after the pending/repo filter,
+   * so a worker can batch how many issues it pulls per run. A non-positive or
+   * absent value means no cap.
+   */
+  limit?: number;
   /** Emit machine-readable JSON instead of human text. */
   json?: boolean;
 }
@@ -156,7 +175,8 @@ function compactStatus(issue: Issue): CompactStatus {
  * Core action for `lore compact list`: walks the watched repos (or a single
  * repo via `options.repo`) and returns their issues with compaction status.
  * With `options.pending`, narrows to the actionable set (uncompacted or stale)
- * and stamps each with a `reason`.
+ * and stamps each with a `reason`. With `options.limit`, caps the number of
+ * returned items (applied last, after the pending/repo filter).
  *
  * Separated from the Commander wiring so it can be tested without spawning a
  * process. The caller is responsible for opening/closing the {@link Store}.
@@ -196,6 +216,10 @@ export function runCompactList(store: Store, options: CompactListOptions = {}): 
         commentsNeedFetch: issue.rawComments === null && issue.commentCount > 0,
       });
     }
+  }
+
+  if (options.limit !== undefined && options.limit > 0) {
+    return items.slice(0, options.limit);
   }
   return items;
 }
@@ -251,6 +275,7 @@ export function compactCommand(): Command {
     .description("List issues with their compaction status; --pending narrows to what needs compacting")
     .option("--pending", "only issues that need compacting (uncompacted or stale)")
     .option("--repo <owner/repo>", "restrict to a single watched repo")
+    .option("--limit <n>", "cap the number of issues returned, applied after the pending/repo filter", parseLimit)
     .option("--json", "emit machine-readable JSON")
     .action((options: CompactListOptions) => {
       const config = loadConfig({ requireToken: false });

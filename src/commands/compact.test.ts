@@ -6,6 +6,7 @@ import { openStore, type Store } from "../store/index.js";
 import {
   CompactCommandError,
   formatCompactList,
+  parseLimit,
   parseTarget,
   runCompactList,
   runCompactSet,
@@ -40,6 +41,20 @@ describe("parseTarget", () => {
       expect(() => parseTarget(target)).toThrow(/owner\/repo#number/);
     },
   );
+});
+
+describe("parseLimit", () => {
+  it.each([
+    ["1", 1],
+    ["20", 20],
+    ["100", 100],
+  ])("parses positive integer %s", (input, expected) => {
+    expect(parseLimit(input)).toBe(expected);
+  });
+
+  it.each(["0", "-1", "abc", "1.5", "", "  ", "10x"])("rejects %s", (input) => {
+    expect(() => parseLimit(input)).toThrow(CompactCommandError);
+  });
 });
 
 describe("runCompactSet", () => {
@@ -219,6 +234,41 @@ describe("runCompactList", () => {
     expect(find(items, "octo/demo", 2)?.status).toBe("stale");
     expect(find(items, "octo/demo", 3)?.status).toBe("compacted");
     expect(find(items, "octo/demo", 3)?.reason).toBeNull();
+  });
+
+  it("--limit caps the number of returned items", () => {
+    const items = runCompactList(store, { limit: 2 });
+
+    expect(items).toHaveLength(2);
+  });
+
+  it("--limit applies after the --pending filter", () => {
+    // 3 issues are pending (#1, #2, other/lib#10); cap to 1.
+    const items = runCompactList(store, { pending: true, limit: 1 });
+
+    expect(items).toHaveLength(1);
+    // The single returned item must itself be pending.
+    expect(items[0].reason).not.toBeNull();
+  });
+
+  it("--limit applies after the --repo filter", () => {
+    const items = runCompactList(store, { repo: "octo/demo", limit: 1 });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].repo).toBe("octo/demo");
+  });
+
+  it("--limit larger than the result set returns everything", () => {
+    const all = runCompactList(store);
+    const limited = runCompactList(store, { limit: 100 });
+
+    expect(limited).toHaveLength(all.length);
+  });
+
+  it("a non-positive --limit is treated as no cap", () => {
+    const all = runCompactList(store);
+    expect(runCompactList(store, { limit: 0 })).toHaveLength(all.length);
+    expect(runCompactList(store, { limit: -5 })).toHaveLength(all.length);
   });
 
   it("--repo restricts to a single repo", () => {

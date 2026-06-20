@@ -243,6 +243,13 @@ the structured form). The full, authoritative, field-by-field compact format,
 with rules and worked examples, is in
 [docs/compact-format.md](./docs/compact-format.md).
 
+To automate this loop, see the optional auto-compaction worker in
+[examples/auto-compact/](./examples/auto-compact/): a small companion script that
+batches the pending set (`compact list --pending --limit`), calls an LLM, and
+writes the compacts back. It lives outside the CLI on purpose: `lore` itself
+never calls an LLM, so the worker keeps that dependency in the example, not the
+core.
+
 ## How it works
 
 - **Local SQLite mirror.** State lives in a single SQLite database at
