@@ -115,6 +115,15 @@ export interface Store {
 
   /** Closes the database connection. */
   close(): void;
+
+  /**
+   * Caches on-demand fetched raw comments for an issue keyed by
+   * `(repoId, number)`: sets `raw_comments` to the JSON-encoded comments and
+   * stamps `raw_fetched_at`. Used by `lore show --raw` so comments are fetched
+   * once and reused. Returns the updated row, or undefined if the issue does
+   * not exist.
+   */
+  setIssueRawComments(repoId: number, number: number, commentsJson: string, fetchedAt: string): Issue | undefined;
 }
 
 /**
@@ -194,6 +203,12 @@ export function openStore(dbPath: string): Store {
       WHERE repo_id = ? AND number = ?
      RETURNING *`,
   );
+  const setIssueRawCommentsStmt = db.prepare<[string, string, number, number]>(
+    `UPDATE issues
+        SET raw_comments = ?, raw_fetched_at = ?
+      WHERE repo_id = ? AND number = ?
+     RETURNING *`,
+  );
 
   return {
     db,
@@ -264,6 +279,11 @@ export function openStore(dbPath: string): Store {
 
     close(): void {
       db.close();
+    },
+
+    setIssueRawComments(repoId: number, number: number, commentsJson: string, fetchedAt: string): Issue | undefined {
+      const row = setIssueRawCommentsStmt.get(commentsJson, fetchedAt, repoId, number) as IssueRow | undefined;
+      return row ? rowToIssue(row) : undefined;
     },
   };
 }
