@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { compactCommand } from "./compact.js";
 import { repoDigestCommand } from "./repo-digest.js";
+import { showCommand } from "./show.js";
 
 /**
  * Wires every subcommand onto the root program.
@@ -13,4 +14,5 @@ export function registerCommands(program: Command): void {
   // repo-digest, show, compact, protocol). See .local/TASKS.md.
   program.addCommand(compactCommand());
   program.addCommand(repoDigestCommand());
+  program.addCommand(showCommand());
 }

@@ -202,6 +202,27 @@ describe("openStore", () => {
         expect(store.setCompact(repoId, 999, { compact: "x", tldr: "y" })).toBeUndefined();
       });
     });
+
+    describe("setIssueRawComments", () => {
+      it("caches raw comments and stamps raw_fetched_at", () => {
+        store.upsertIssue(makeIssue({ repoId, number: 7 }));
+        const commentsJson = JSON.stringify([{ id: 1, author: "octocat", body: "hi" }]);
+
+        const updated = store.setIssueRawComments(repoId, 7, commentsJson, "2024-03-01T00:00:00Z");
+
+        expect(updated).toBeDefined();
+        expect(updated?.rawComments).toBe(commentsJson);
+        expect(updated?.rawFetchedAt).toBe("2024-03-01T00:00:00Z");
+
+        const reread = store.getIssue(repoId, 7);
+        expect(reread?.rawComments).toBe(commentsJson);
+        expect(reread?.rawFetchedAt).toBe("2024-03-01T00:00:00Z");
+      });
+
+      it("returns undefined for an unknown issue", () => {
+        expect(store.setIssueRawComments(repoId, 999, "[]", "2024-03-01T00:00:00Z")).toBeUndefined();
+      });
+    });
   });
 
   describe("events and refs foreign keys", () => {
