@@ -36,7 +36,9 @@ Every command supports `--json` for machine/AI consumption.
 
 `lore` does not call any LLM itself. It stores raw issue content and exposes a
 compaction protocol that an agent follows to write and reuse summaries. Run
-`lore protocol` (or read [CLAUDE.md](./CLAUDE.md)) for the contract.
+`lore protocol` (or read [CLAUDE.md](./CLAUDE.md)) for the contract. The
+canonical compact format is specified in
+[docs/compact-format.md](./docs/compact-format.md).
 
 ## Development
 
