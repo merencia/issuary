@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { readStoredToken } from "../auth/credentials.js";
 
 /** Default GitHub REST API base URL used when `GITHUB_API_URL` is unset. */
 const DEFAULT_API_URL = "https://api.github.com";
@@ -50,27 +51,32 @@ export class ConfigError extends Error {
  * Loads and validates configuration from the environment.
  *
  * Reads `GITHUB_TOKEN`, `GITHUB_API_URL` and `LORE_HOME`, applying defaults and
- * normalization. Throws {@link ConfigError} when a required value is missing.
+ * normalization. The token is resolved in precedence order: the `GITHUB_TOKEN`
+ * environment variable wins, then the token stored by `lore login` in the
+ * credentials file. Throws {@link ConfigError} when a required value is missing.
  *
  * @param options - Resolution options; see {@link LoadConfigOptions}.
  * @returns The resolved {@link Config}.
- * @throws {ConfigError} When `requireToken` is `true` and `GITHUB_TOKEN` is unset or empty.
+ * @throws {ConfigError} When `requireToken` is `true` and no token is resolvable.
  */
 export function loadConfig(options: LoadConfigOptions = {}): Config {
   const { requireToken = true } = options;
 
-  const token = (process.env.GITHUB_TOKEN ?? "").trim();
-  if (requireToken && token === "") {
-    throw new ConfigError(
-      "GITHUB_TOKEN is not set. lore needs a GitHub personal access token to reach the API. " +
-        "Create one at https://github.com/settings/tokens with the `repo` (or `public_repo`) read scope, " +
-        "then export it, e.g. `export GITHUB_TOKEN=ghp_...`.",
-    );
-  }
-
   const apiUrl = normalizeApiUrl(process.env.GITHUB_API_URL);
   const home = (process.env.LORE_HOME ?? "").trim() || join(homedir(), ".lore");
   const dbPath = join(home, "db.sqlite");
+
+  // Precedence: GITHUB_TOKEN env wins, then a token stored by `lore login`.
+  const envToken = (process.env.GITHUB_TOKEN ?? "").trim();
+  const token = envToken || readStoredToken(home) || "";
+  if (requireToken && token === "") {
+    throw new ConfigError(
+      "No GitHub token found. lore needs a GitHub personal access token to reach the API. " +
+        "Either run `lore login` to authenticate via the browser, or create a token at " +
+        "https://github.com/settings/tokens with the `repo` (or `public_repo`) read scope and " +
+        "export it, e.g. `export GITHUB_TOKEN=ghp_...`.",
+    );
+  }
 
   return { token, apiUrl, home, dbPath };
 }

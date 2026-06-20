@@ -17,6 +17,7 @@ const FRIENDLY_ERROR_NAMES = new Set([
   "CompactValidationError",
   "ShowCommandError",
   "SkillCommandError",
+  "AuthError",
 ]);
 
 /** Output sink for {@link handleCliError}, injectable so tests avoid real I/O. */

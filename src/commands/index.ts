@@ -3,6 +3,8 @@ import { addCommand } from "./add.js";
 import { compactCommand } from "./compact.js";
 import { digestCommand } from "./digest.js";
 import { listCommand } from "./list.js";
+import { loginCommand } from "./login.js";
+import { logoutCommand } from "./logout.js";
 import { protocolCommand } from "./protocol.js";
 import { removeCommand } from "./remove.js";
 import { repoDigestCommand } from "./repo-digest.js";
@@ -29,4 +31,6 @@ export function registerCommands(program: Command): void {
   program.addCommand(showCommand());
   program.addCommand(skillCommand());
   program.addCommand(syncCommand());
+  program.addCommand(loginCommand());
+  program.addCommand(logoutCommand());
 }
