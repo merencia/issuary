@@ -1,0 +1,15 @@
+# planning / scratch (local only)
+.local/
+
+# node
+node_modules/
+dist/
+coverage/
+*.log
+
+# env / secrets
+.env
+.env.*
+
+# os
+.DS_Store
