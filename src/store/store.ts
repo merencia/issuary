@@ -3,7 +3,16 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { migrate } from "./migrations.js";
-import type { EventWithContext, Issue, IssueEvent, IssueRef, NewRepo, Repo, UpsertIssue } from "./types.js";
+import type {
+  EventWithContext,
+  Issue,
+  IssueEvent,
+  IssueRef,
+  IssueWithRepo,
+  NewRepo,
+  Repo,
+  UpsertIssue,
+} from "./types.js";
 
 /** Raw column shape of a `repos` row as returned by better-sqlite3. */
 interface RepoRow {
@@ -140,6 +149,50 @@ function rowToIssue(row: IssueRow): Issue {
   };
 }
 
+/** An {@link IssueRow} joined with the owning repo's `full_name`. */
+interface IssueWithRepoRow extends IssueRow {
+  repo_full_name: string;
+}
+
+function rowToIssueWithRepo(row: IssueWithRepoRow): IssueWithRepo {
+  return { ...rowToIssue(row), repoFullName: row.repo_full_name };
+}
+
+/**
+ * Filter for {@link Store.queryIssues}. Every field is optional; omitted fields
+ * do not constrain the result. Values are bound as parameters, never
+ * interpolated.
+ */
+export interface QueryIssuesFilter {
+  /** Issue state: `open`, `closed`, or `all` (no state constraint). Default `all`. */
+  state?: "open" | "closed" | "all";
+  /** Restrict to these repo ids (already resolved from full names). */
+  repoIds?: number[];
+  /** Match issues whose labels JSON array contains ANY of these (OR semantics). */
+  labels?: string[];
+  /** Restrict to this author login. */
+  author?: string;
+  /** Restrict to this `state_reason` (e.g. `completed`, `not_planned`). */
+  stateReason?: string;
+  /** Only issues with `updated_at >= since` (ISO-8601). */
+  since?: string;
+  /** Case-insensitive substring match on the issue title. */
+  search?: string;
+  /**
+   * Compaction status:
+   * - `uncompacted`: `compact IS NULL`.
+   * - `stale`: a compact exists but is stale.
+   * - `compacted`: a fresh compact exists.
+   */
+  compaction?: "uncompacted" | "stale" | "compacted";
+  /** Sort key. Default `updated`. */
+  sort?: "updated" | "created" | "number";
+  /** Sort direction. Default `desc`. */
+  order?: "asc" | "desc";
+  /** Cap the number of rows returned. A non-positive or absent value means no cap. */
+  limit?: number;
+}
+
 /**
  * A typed handle over the SQLite database. All access goes through these
  * methods; the underlying `db` is exposed for migrations and advanced use but
@@ -173,6 +226,14 @@ export interface Store {
   getIssue(repoId: number, number: number): Issue | undefined;
   /** Lists issues for a repo, ordered by issue number ascending. */
   listIssues(repoId: number): Issue[];
+
+  /**
+   * Queries issues across repos with a parametrized {@link QueryIssuesFilter},
+   * each row joined with its repo's `full_name`. Powers the cross-repo `issuary
+   * issues` listing. Read-only: never mutates state. Label filtering uses SQLite
+   * `json_each` over the stored labels JSON array (OR semantics).
+   */
+  queryIssues(filter?: QueryIssuesFilter): IssueWithRepo[];
 
   /**
    * Persists a compact for an issue keyed by `(repoId, number)`: sets `compact`
@@ -408,6 +469,75 @@ export function openStore(dbPath: string): Store {
     listIssues(repoId: number): Issue[] {
       const rows = listIssuesStmt.all(repoId) as IssueRow[];
       return rows.map(rowToIssue);
+    },
+
+    queryIssues(filter: QueryIssuesFilter = {}): IssueWithRepo[] {
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+
+      if (filter.state && filter.state !== "all") {
+        conditions.push("i.state = ?");
+        params.push(filter.state);
+      }
+      if (filter.repoIds && filter.repoIds.length > 0) {
+        const placeholders = filter.repoIds.map(() => "?").join(", ");
+        conditions.push(`i.repo_id IN (${placeholders})`);
+        params.push(...filter.repoIds);
+      }
+      if (filter.author) {
+        conditions.push("i.author = ?");
+        params.push(filter.author);
+      }
+      if (filter.stateReason) {
+        conditions.push("i.state_reason = ?");
+        params.push(filter.stateReason);
+      }
+      if (filter.since) {
+        conditions.push("i.updated_at >= ?");
+        params.push(filter.since);
+      }
+      if (filter.search) {
+        // Case-insensitive substring match. LIKE is case-insensitive for ASCII
+        // in SQLite by default; lower() on both sides covers the rest.
+        conditions.push("lower(i.title) LIKE '%' || lower(?) || '%'");
+        params.push(filter.search);
+      }
+      if (filter.compaction === "uncompacted") {
+        conditions.push("i.compact IS NULL");
+      } else if (filter.compaction === "stale") {
+        conditions.push("i.compact IS NOT NULL AND i.compact_stale = 1");
+      } else if (filter.compaction === "compacted") {
+        conditions.push("i.compact IS NOT NULL AND i.compact_stale = 0");
+      }
+      if (filter.labels && filter.labels.length > 0) {
+        const placeholders = filter.labels.map(() => "?").join(", ");
+        conditions.push(`EXISTS (SELECT 1 FROM json_each(i.labels) WHERE json_each.value IN (${placeholders}))`);
+        params.push(...filter.labels);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const sortColumn = { updated: "i.updated_at", created: "i.created_at", number: "i.number" }[
+        filter.sort ?? "updated"
+      ];
+      const direction = filter.order === "asc" ? "ASC" : "DESC";
+      // Stable tiebreaker so equal sort keys have a deterministic order.
+      const orderBy = `ORDER BY ${sortColumn} ${direction}, i.number ${direction}`;
+
+      const limit = filter.limit !== undefined && filter.limit > 0 ? "LIMIT ?" : "";
+      if (limit) {
+        params.push(filter.limit as number);
+      }
+
+      const sql = `
+        SELECT i.*, r.full_name AS repo_full_name
+        FROM issues i
+        JOIN repos r ON r.id = i.repo_id
+        ${where}
+        ${orderBy}
+        ${limit}`;
+      const rows = db.prepare(sql).all(...params) as IssueWithRepoRow[];
+      return rows.map(rowToIssueWithRepo);
     },
 
     setCompact(repoId: number, number: number, compact: { compact: string; tldr: string }): Issue | undefined {
