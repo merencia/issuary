@@ -81,7 +81,6 @@ function isTransientNetworkError(error: unknown): boolean {
   const message = error.message.toLowerCase();
   return (
     message.includes("fetch failed") ||
-    message.includes("network") ||
     message.includes("econnreset") ||
     message.includes("socket hang up") ||
     message.includes("terminated")
@@ -198,6 +197,16 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
     );
   }
 
+  /** Throws a dated GitHubError when rate-limit retries are exhausted. */
+  function rateLimitExhausted(waitMs: number): never {
+    const retryAt = new Date(now() + waitMs).toISOString();
+    throw new GitHubError(
+      `GitHub rate limit exceeded after ${maxRetries} retries. Retry after ${retryAt}.`,
+      403,
+      rateLimit,
+    );
+  }
+
   /**
    * Performs a single request, retrying on rate-limit (403/429) and transient
    * network failures up to {@link maxRetries} times. Rate-limit retries honor
@@ -227,14 +236,19 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
 
       rateLimit = parseRateLimit(response.headers);
 
-      if (isRateLimitedResponse(response, rateLimit) && attempt < maxRetries) {
+      if (isRateLimitedResponse(response, rateLimit)) {
         const waitMs = rateLimitWaitMs(response, rateLimit, now());
         if (waitMs > maxRateLimitWaitMs) {
           rateLimitFailFast(waitMs);
         }
-        await sleep(waitMs);
-        attempt += 1;
-        continue;
+        if (attempt < maxRetries) {
+          await sleep(waitMs);
+          attempt += 1;
+          continue;
+        }
+        // Retries exhausted while still rate-limited: throw an explicit dated
+        // error rather than falling through to the generic failure message.
+        rateLimitExhausted(waitMs);
       }
 
       return response;

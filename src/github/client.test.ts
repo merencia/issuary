@@ -393,6 +393,35 @@ describe("rate-limit backoff", () => {
     expect(sleep).not.toHaveBeenCalled();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("throws a dated error when rate-limit retries are exhausted", async () => {
+    const now = () => 1_000_000;
+    const resetSeconds = now() / 1000 + 10; // within the cap, so it keeps retrying
+    const fetchImpl = vi.fn().mockResolvedValue(
+      mockResponse({
+        status: 403,
+        body: { message: "API rate limit exceeded" },
+        headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(resetSeconds) },
+      }),
+    );
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+      now,
+      maxRetries: 2,
+    });
+
+    await expect(client.listIssues("o/n")).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringContaining("after 2 retries"),
+    });
+    // Initial attempt plus 2 retries, all rate-limited.
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("transient network errors", () => {
