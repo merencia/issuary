@@ -67,6 +67,34 @@ export interface IssueEvent {
 }
 
 /**
+ * An issue event joined with the context a reader needs to act on it: the
+ * issue's identity (number, title, state) and the owning repo's `full_name`.
+ * Produced by {@link Store.listEvents} for the aggregated digest inbox.
+ */
+export interface EventWithContext {
+  /** The event's id. */
+  id: number;
+  /** The issue the event belongs to. */
+  issueId: number;
+  /** One of `opened`, `closed`, `reopened`, `commented`, `closed_commented`. */
+  type: string;
+  /** ISO-8601 timestamp of when the change was detected. */
+  detectedAt: string;
+  /** Whether the event has been surfaced to the user. */
+  seen: boolean;
+  /** The owning repo's id. */
+  repoId: number;
+  /** The owning repo's `owner/name`. */
+  repoFullName: string;
+  /** The issue's number within its repo. */
+  issueNumber: number;
+  /** The issue's title. */
+  issueTitle: string;
+  /** The issue's state: `open` or `closed`. */
+  issueState: string;
+}
+
+/**
  * A cross-reference parsed out of an issue (e.g. `#812`, `owner/repo#45`).
  */
 export interface IssueRef {

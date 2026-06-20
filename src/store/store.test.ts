@@ -315,6 +315,78 @@ describe("openStore", () => {
       });
     });
   });
+
+  describe("listEvents and markEventsSeen", () => {
+    let repoAId: number;
+    let repoBId: number;
+    let issueA1: number;
+    let issueB1: number;
+
+    beforeEach(() => {
+      repoAId = store.insertRepo({ owner: "octo", name: "a", fullName: "octo/a" }).id;
+      repoBId = store.insertRepo({ owner: "octo", name: "b", fullName: "octo/b" }).id;
+      issueA1 = store.upsertIssue(makeIssue({ repoId: repoAId, number: 1, title: "A bug", state: "open" })).id;
+      issueB1 = store.upsertIssue(makeIssue({ repoId: repoBId, number: 5, title: "B bug", state: "closed" })).id;
+    });
+
+    it("joins each event with its issue and repo context", () => {
+      const event = store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      const [row] = store.listEvents();
+      expect(row).toEqual({
+        id: event.id,
+        issueId: issueA1,
+        type: "opened",
+        detectedAt: "2024-05-01T00:00:00Z",
+        seen: false,
+        repoId: repoAId,
+        repoFullName: "octo/a",
+        issueNumber: 1,
+        issueTitle: "A bug",
+        issueState: "open",
+      });
+    });
+
+    it("orders newest first by detected_at then id", () => {
+      store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      store.insertEvent(issueB1, "closed", "2024-05-03T00:00:00Z");
+      store.insertEvent(issueA1, "commented", "2024-05-02T00:00:00Z");
+      expect(store.listEvents().map((e) => e.type)).toEqual(["closed", "commented", "opened"]);
+    });
+
+    it("filters by seen state", () => {
+      const e1 = store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      store.insertEvent(issueB1, "closed", "2024-05-02T00:00:00Z");
+      store.markEventsSeen([e1.id]);
+      expect(store.listEvents({ seen: false }).map((e) => e.type)).toEqual(["closed"]);
+      expect(store.listEvents({ seen: true }).map((e) => e.type)).toEqual(["opened"]);
+    });
+
+    it("filters by since (inclusive lower bound)", () => {
+      store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      store.insertEvent(issueB1, "closed", "2024-05-05T00:00:00Z");
+      const since = store.listEvents({ since: "2024-05-05T00:00:00Z" });
+      expect(since.map((e) => e.type)).toEqual(["closed"]);
+    });
+
+    it("filters by repoId", () => {
+      store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      store.insertEvent(issueB1, "closed", "2024-05-02T00:00:00Z");
+      expect(store.listEvents({ repoId: repoBId }).map((e) => e.repoFullName)).toEqual(["octo/b"]);
+    });
+
+    it("marks events seen and ignores unknown ids", () => {
+      const e1 = store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      store.markEventsSeen([e1.id, 9999]);
+      expect(store.listEvents({ seen: false })).toHaveLength(0);
+      expect(store.listEvents({ seen: true }).map((e) => e.id)).toEqual([e1.id]);
+    });
+
+    it("is a no-op for an empty id list", () => {
+      const e1 = store.insertEvent(issueA1, "opened", "2024-05-01T00:00:00Z");
+      expect(() => store.markEventsSeen([])).not.toThrow();
+      expect(store.listEvents({ seen: false }).map((e) => e.id)).toEqual([e1.id]);
+    });
+  });
 });
 
 describe("defaultDbPath", () => {

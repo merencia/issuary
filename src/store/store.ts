@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { migrate } from "./migrations.js";
-import type { Issue, IssueEvent, NewRepo, Repo, UpsertIssue } from "./types.js";
+import type { EventWithContext, Issue, IssueEvent, NewRepo, Repo, UpsertIssue } from "./types.js";
 
 /** Raw column shape of a `repos` row as returned by better-sqlite3. */
 interface RepoRow {
@@ -47,6 +47,35 @@ interface EventRow {
   type: string;
   detected_at: string;
   seen: number;
+}
+
+/** Raw column shape of an event joined with its issue and repo. */
+interface EventWithContextRow {
+  id: number;
+  issue_id: number;
+  type: string;
+  detected_at: string;
+  seen: number;
+  repo_id: number;
+  repo_full_name: string;
+  issue_number: number;
+  issue_title: string;
+  issue_state: string;
+}
+
+function rowToEventWithContext(row: EventWithContextRow): EventWithContext {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    type: row.type,
+    detectedAt: row.detected_at,
+    seen: row.seen !== 0,
+    repoId: row.repo_id,
+    repoFullName: row.repo_full_name,
+    issueNumber: row.issue_number,
+    issueTitle: row.issue_title,
+    issueState: row.issue_state,
+  };
 }
 
 function rowToEvent(row: EventRow): IssueEvent {
@@ -170,6 +199,24 @@ export interface Store {
    * `null` etag is written as-is so callers can clear it.
    */
   updateRepoSync(repoId: number, sync: { lastSyncedAt: string; etag: string | null }): void;
+
+  /**
+   * Lists events joined with their issue and repo context, newest first
+   * (`detected_at` descending, then `id` descending as a tiebreaker). Powers the
+   * aggregated `lore digest` inbox across all watched repos.
+   *
+   * @param filter - Optional narrowing:
+   *   - `seen`: only events with this seen state (`false` => unseen inbox).
+   *   - `since`: only events with `detected_at >= since` (ISO-8601).
+   *   - `repoId`: only events for this repo.
+   */
+  listEvents(filter?: { seen?: boolean; since?: string; repoId?: number }): EventWithContext[];
+
+  /**
+   * Marks the given event ids as seen. Ignores ids that do not exist and is a
+   * no-op for an empty list.
+   */
+  markEventsSeen(eventIds: number[]): void;
 }
 
 /**
@@ -356,6 +403,51 @@ export function openStore(dbPath: string): Store {
 
     updateRepoSync(repoId: number, sync: { lastSyncedAt: string; etag: string | null }): void {
       updateRepoSyncStmt.run(sync.lastSyncedAt, sync.etag, repoId);
+    },
+
+    listEvents(filter?: { seen?: boolean; since?: string; repoId?: number }): EventWithContext[] {
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+      if (filter?.seen !== undefined) {
+        conditions.push("e.seen = ?");
+        params.push(filter.seen ? 1 : 0);
+      }
+      if (filter?.since !== undefined) {
+        conditions.push("e.detected_at >= ?");
+        params.push(filter.since);
+      }
+      if (filter?.repoId !== undefined) {
+        conditions.push("r.id = ?");
+        params.push(filter.repoId);
+      }
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const sql = `
+        SELECT
+          e.id AS id,
+          e.issue_id AS issue_id,
+          e.type AS type,
+          e.detected_at AS detected_at,
+          e.seen AS seen,
+          r.id AS repo_id,
+          r.full_name AS repo_full_name,
+          i.number AS issue_number,
+          i.title AS issue_title,
+          i.state AS issue_state
+        FROM events e
+        JOIN issues i ON i.id = e.issue_id
+        JOIN repos r ON r.id = i.repo_id
+        ${where}
+        ORDER BY e.detected_at DESC, e.id DESC`;
+      const rows = db.prepare(sql).all(...params) as EventWithContextRow[];
+      return rows.map(rowToEventWithContext);
+    },
+
+    markEventsSeen(eventIds: number[]): void {
+      if (eventIds.length === 0) {
+        return;
+      }
+      const placeholders = eventIds.map(() => "?").join(", ");
+      db.prepare(`UPDATE events SET seen = 1 WHERE id IN (${placeholders})`).run(...eventIds);
     },
   };
 }
