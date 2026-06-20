@@ -5,6 +5,7 @@ import { listCommand } from "./list.js";
 import { removeCommand } from "./remove.js";
 import { repoDigestCommand } from "./repo-digest.js";
 import { showCommand } from "./show.js";
+import { syncCommand } from "./sync.js";
 
 /**
  * Wires every subcommand onto the root program.
@@ -21,4 +22,5 @@ export function registerCommands(program: Command): void {
   program.addCommand(compactCommand());
   program.addCommand(repoDigestCommand());
   program.addCommand(showCommand());
+  program.addCommand(syncCommand());
 }

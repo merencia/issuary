@@ -259,6 +259,62 @@ describe("openStore", () => {
       );
     });
   });
+
+  describe("sync helpers", () => {
+    let repoId: number;
+    let issueId: number;
+
+    beforeEach(() => {
+      repoId = store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" }).id;
+      issueId = store.upsertIssue(makeIssue({ repoId, number: 1 })).id;
+    });
+
+    describe("insertEvent", () => {
+      it("records an event with the given type and timestamp", () => {
+        const event = store.insertEvent(issueId, "opened", "2024-03-01T00:00:00Z");
+        expect(event.id).toBeGreaterThan(0);
+        expect(event.issueId).toBe(issueId);
+        expect(event.type).toBe("opened");
+        expect(event.detectedAt).toBe("2024-03-01T00:00:00Z");
+        expect(event.seen).toBe(false);
+
+        const rows = store.db.prepare(`SELECT type FROM events WHERE issue_id = ?`).all(issueId) as { type: string }[];
+        expect(rows.map((r) => r.type)).toEqual(["opened"]);
+      });
+
+      it("rejects events for a non-existent issue", () => {
+        expect(() => store.insertEvent(9999, "opened", "2024-03-01T00:00:00Z")).toThrow(/FOREIGN KEY/i);
+      });
+    });
+
+    describe("setCompactStale", () => {
+      it("flips the stale flag", () => {
+        store.setCompactStale(issueId, true);
+        expect(store.getIssue(repoId, 1)?.compactStale).toBe(true);
+        store.setCompactStale(issueId, false);
+        expect(store.getIssue(repoId, 1)?.compactStale).toBe(false);
+      });
+
+      it("is a no-op for an unknown issue", () => {
+        expect(() => store.setCompactStale(9999, true)).not.toThrow();
+      });
+    });
+
+    describe("updateRepoSync", () => {
+      it("writes last_synced_at and etag", () => {
+        store.updateRepoSync(repoId, { lastSyncedAt: "2024-04-01T00:00:00Z", etag: 'W/"e1"' });
+        const repo = store.getRepo(repoId);
+        expect(repo?.lastSyncedAt).toBe("2024-04-01T00:00:00Z");
+        expect(repo?.etag).toBe('W/"e1"');
+      });
+
+      it("can clear the etag with null", () => {
+        store.updateRepoSync(repoId, { lastSyncedAt: "2024-04-01T00:00:00Z", etag: 'W/"e1"' });
+        store.updateRepoSync(repoId, { lastSyncedAt: "2024-04-02T00:00:00Z", etag: null });
+        expect(store.getRepo(repoId)?.etag).toBeNull();
+      });
+    });
+  });
 });
 
 describe("defaultDbPath", () => {
