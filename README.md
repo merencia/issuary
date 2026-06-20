@@ -34,20 +34,77 @@ npm install -g @merencia/lore
 Requirements:
 
 - **Node.js >= 20.**
-- **A `GITHUB_TOKEN`** in the environment, a GitHub personal access token with
-  read access to the repos you watch (the `repo` scope, or `public_repo` for
-  public repos only). Commands that hit the GitHub API (`add`, `sync`, and
-  `show --raw`) require it; purely local commands do not.
+- **A GitHub token.** Either export `GITHUB_TOKEN` (a personal access token with
+  read access to the repos you watch, the `repo` scope or `public_repo` for
+  public repos only) or run `lore login` to authenticate via the browser. See
+  [Authentication](#authentication). Commands that hit the GitHub API (`add`,
+  `sync`, and `show --raw`) require a token; purely local commands do not.
 
 ### Environment variables
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `GITHUB_TOKEN` | GitHub personal access token used to reach the API. | (required for API commands) |
+| `GITHUB_TOKEN` | GitHub personal access token used to reach the API. Takes precedence over a token stored by `lore login`. | (required for API commands unless `lore login` was run) |
 | `GITHUB_API_URL` | REST API base URL. Set this for GitHub Enterprise, e.g. `https://github.example.com/api/v3`. Trailing slashes are trimmed. | `https://api.github.com` |
-| `LORE_HOME` | Directory holding local state (the SQLite database). | `~/.lore` |
+| `LORE_HOME` | Directory holding local state (the SQLite database and `lore login` credentials). | `~/.lore` |
+| `LORE_GITHUB_CLIENT_ID` | OAuth App client id used by `lore login` (device flow). Overrides the baked-in default. | (build default) |
+| `LORE_GITHUB_SCOPE` | OAuth scope requested by `lore login`. | `repo` |
 
 The database lives at `$LORE_HOME/db.sqlite` (so `~/.lore/db.sqlite` by default).
+
+## Authentication
+
+Commands that hit the GitHub API (`add`, `sync`, `show --raw`) need a token.
+There are two ways to provide one:
+
+1. **Export a token.** Set `GITHUB_TOKEN` to a GitHub personal access token with
+   read access to the repos you watch (the `repo` scope, or `public_repo` for
+   public repos only):
+
+   ```sh
+   export GITHUB_TOKEN=ghp_...
+   ```
+
+2. **`lore login` (device flow).** Authenticate in the browser, no manual token
+   handling:
+
+   ```sh
+   lore login
+   ```
+
+   It prints a short code and a URL. Open the URL, enter the code, and approve.
+   `lore` then stores the resulting token and confirms with `Logged in as <you>.`
+   The default scope requested is `repo` so private repos work; override it with
+   `LORE_GITHUB_SCOPE` if you only need public access. `lore login --json` emits
+   `{ "ok": true, "login": "<you>", "scopes": [...] }`. The token itself is never
+   printed.
+
+**Precedence.** When both are present, the `GITHUB_TOKEN` environment variable
+wins over the stored token. So an explicitly exported token always takes effect,
+and `lore login` is the fallback when no env token is set.
+
+**Where the token is stored.** `lore login` writes the token to
+`~/.lore/credentials.json` (under `$LORE_HOME`), created with file mode `0600`
+(owner read/write only). The token is never logged.
+
+**Log out.** `lore logout` removes the stored token locally:
+
+```sh
+lore logout
+```
+
+This only deletes the local credentials file; it does not revoke the token on
+GitHub. `lore logout --json` emits `{ "ok": true, "removed": boolean }`.
+
+### Maintainer setup (device login)
+
+`lore login` uses the GitHub OAuth **device flow**, which requires a registered
+GitHub OAuth App with "Device Flow" enabled. The app's **public** client id must
+be available to the CLI: either baked into `DEFAULT_GITHUB_CLIENT_ID` in
+`src/auth/client-id.ts` (a device-flow client id is not a secret, so it is safe
+to commit) or supplied at runtime via the `LORE_GITHUB_CLIENT_ID` environment
+variable. Until a client id is configured, `lore login` exits with a clear error;
+the `GITHUB_TOKEN` path keeps working regardless.
 
 ## Quickstart
 
@@ -218,6 +275,22 @@ to find the exact contract (`lore protocol`, `lore --help`).
   `--dir`). Running it twice yields exactly one section; existing unrelated
   content is preserved.
 - `--json` emits `{ "name", "description", "path", "content", "format" }`.
+
+### `lore login`
+
+Authenticate with GitHub via the OAuth device flow and store the token at
+`~/.lore/credentials.json` (mode `0600`). Prints a user code and a verification
+URL to open in the browser, polls until you authorize, then confirms with
+`Logged in as <you>.` See [Authentication](#authentication).
+
+- `--json` emits `{ "ok": true, "login": "<you>", "scopes": [...] }`.
+
+### `lore logout`
+
+Remove the locally stored token. Local only; it does not revoke the token on
+GitHub.
+
+- `--json` emits `{ "ok": true, "removed": boolean }`.
 
 ## For AI agents
 
