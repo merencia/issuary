@@ -291,12 +291,166 @@ describe("error mapping", () => {
         headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1700000000" },
       }),
     );
-    const client = makeClient(fetchImpl as unknown as typeof fetch);
+    // maxRetries 0 so it surfaces the failure instead of retrying the dead window.
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      maxRetries: 0,
+    });
 
     await expect(client.listIssues("o/n")).rejects.toMatchObject({
       status: 403,
       message: expect.stringContaining("rate limit"),
       rateLimit: { remaining: 0, reset: 1700000000 },
     });
+  });
+
+  it("distinguishes 404 as not-found-or-no-access", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(mockResponse({ status: 404, body: { message: "Not Found" } }));
+    const client = makeClient(fetchImpl as unknown as typeof fetch);
+
+    await expect(client.getRepo("octo/private")).rejects.toMatchObject({
+      status: 404,
+      message: expect.stringContaining("not found or your token has no access"),
+    });
+  });
+});
+
+describe("rate-limit backoff", () => {
+  it("retries after the reset wait when rate-limited, then succeeds", async () => {
+    const now = () => 1_000_000; // ms
+    const resetSeconds = now() / 1000 + 30; // 30s out, within the cap
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 403,
+          body: { message: "API rate limit exceeded" },
+          headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(resetSeconds) },
+        }),
+      )
+      .mockResolvedValueOnce(mockResponse({ body: [], headers: { etag: 'W/"ok"' } }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+      now,
+    });
+
+    const result = await client.listIssues("o/n");
+
+    expect(result.status).toBe("ok");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(30_000);
+  });
+
+  it("honors Retry-After (delta seconds) over x-ratelimit-reset", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse({ status: 429, body: {}, headers: { "retry-after": "5" } }))
+      .mockResolvedValueOnce(mockResponse({ body: [] }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+    });
+
+    await client.listIssues("o/n");
+
+    expect(sleep).toHaveBeenCalledWith(5_000);
+  });
+
+  it("fails fast with a dated message when the reset is beyond the wait cap", async () => {
+    const now = () => 1_000_000;
+    const resetSeconds = now() / 1000 + 600; // 10 minutes out
+    const fetchImpl = vi.fn().mockResolvedValue(
+      mockResponse({
+        status: 403,
+        body: { message: "API rate limit exceeded" },
+        headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(resetSeconds) },
+      }),
+    );
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+      now,
+      maxRateLimitWaitMs: 60_000, // 1 minute cap
+    });
+
+    await expect(client.listIssues("o/n")).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringContaining("Retry after"),
+    });
+    expect(sleep).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("transient network errors", () => {
+  it("retries a transient failure then succeeds", async () => {
+    const err = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(err)
+      .mockResolvedValueOnce(mockResponse({ body: [], headers: { etag: 'W/"ok"' } }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+      networkBackoffMs: 100,
+    });
+
+    const result = await client.listIssues("o/n");
+
+    expect(result.status).toBe("ok");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(100);
+  });
+
+  it("throws NetworkError once retries are exhausted", async () => {
+    const err = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
+    const fetchImpl = vi.fn().mockRejectedValue(err);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+      maxRetries: 2,
+      networkBackoffMs: 10,
+    });
+
+    await expect(client.listIssues("o/n")).rejects.toMatchObject({ name: "NetworkError" });
+    // initial attempt + 2 retries = 3 calls; sleep between each retry = 2 sleeps.
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a non-transient thrown error", async () => {
+    const err = new TypeError("boom");
+    const fetchImpl = vi.fn().mockRejectedValue(err);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const client = createGitHubClient({
+      token: "ghp_test",
+      apiUrl: "https://api.github.com",
+      fetch: fetchImpl as unknown as typeof fetch,
+      sleep,
+    });
+
+    await expect(client.listIssues("o/n")).rejects.toBe(err);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 });

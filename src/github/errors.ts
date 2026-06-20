@@ -19,3 +19,21 @@ export class GitHubError extends Error {
     this.rateLimit = rateLimit;
   }
 }
+
+/**
+ * Error thrown when a `fetch` to GitHub keeps failing at the transport level
+ * (DNS, connection reset, `fetch failed`) after the client's bounded retries are
+ * exhausted. Distinct from {@link GitHubError}, which carries an HTTP status.
+ *
+ * Callers should catch this to print a friendly message instead of a raw stack.
+ */
+export class NetworkError extends Error {
+  /** The last underlying transport error that triggered the failure, if any. */
+  readonly cause?: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = "NetworkError";
+    this.cause = cause;
+  }
+}

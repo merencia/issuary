@@ -1,4 +1,4 @@
-import { GitHubError } from "./errors.js";
+import { GitHubError, NetworkError } from "./errors.js";
 import { isPullRequest, normalizeComment, normalizeIssue, type RawComment, type RawIssue } from "./normalize.js";
 import type {
   GitHubClient,
@@ -17,6 +17,13 @@ const ACCEPT = "application/vnd.github+json";
 const USER_AGENT = "merencia-lore";
 const PER_PAGE = 100;
 
+/** Default number of automatic retries for rate-limit and network failures. */
+const DEFAULT_MAX_RETRIES = 3;
+/** Default cap on how long the client waits for a rate-limit window to reset. */
+const DEFAULT_MAX_RATE_LIMIT_WAIT_MS = 3 * 60 * 1000;
+/** Base delay (ms) for the exponential backoff between network-error retries. */
+const DEFAULT_NETWORK_BACKOFF_MS = 500;
+
 /** Options for {@link createGitHubClient}. */
 export interface GitHubClientOptions {
   /** GitHub token sent as `Authorization: Bearer {token}`. */
@@ -25,6 +32,90 @@ export interface GitHubClientOptions {
   apiUrl: string;
   /** Optional `fetch` override; defaults to the global `fetch`. For tests. */
   fetch?: typeof fetch;
+  /**
+   * Sleep implementation used between retries. Defaults to a real timer.
+   * Injected by tests so backoff never actually waits.
+   */
+  sleep?: (ms: number) => Promise<void>;
+  /** Clock returning epoch milliseconds; defaults to `Date.now`. For tests. */
+  now?: () => number;
+  /**
+   * Maximum automatic retries for a single request on rate-limit (403/429) or
+   * transient network failure. Defaults to {@link DEFAULT_MAX_RETRIES}.
+   */
+  maxRetries?: number;
+  /**
+   * Cap (ms) on how long to wait for a rate-limit reset before failing fast.
+   * Defaults to {@link DEFAULT_MAX_RATE_LIMIT_WAIT_MS} (3 minutes).
+   */
+  maxRateLimitWaitMs?: number;
+  /**
+   * Base delay (ms) for exponential backoff between network-error retries.
+   * Defaults to {@link DEFAULT_NETWORK_BACKOFF_MS}.
+   */
+  networkBackoffMs?: number;
+}
+
+/** Default sleep backed by a real timer. */
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Heuristic for a transient transport failure worth retrying: a thrown error
+ * (not an HTTP response) whose code or message points at a reset connection,
+ * a DNS hiccup, a timeout, or undici's generic `fetch failed`.
+ */
+function isTransientNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string") {
+    if (
+      ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "EPIPE", "UND_ERR_SOCKET"].includes(code)
+    ) {
+      return true;
+    }
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("econnreset") ||
+    message.includes("socket hang up") ||
+    message.includes("terminated")
+  );
+}
+
+/** True when a response is a rate-limit rejection (403/429 with the tell-tale signals). */
+function isRateLimitedResponse(response: Response, rateLimit: RateLimit | null): boolean {
+  if (response.status !== 403 && response.status !== 429) {
+    return false;
+  }
+  if (response.headers.has("retry-after")) {
+    return true;
+  }
+  return rateLimit?.remaining === 0;
+}
+
+/**
+ * Computes how long to wait (ms) before retrying a rate-limited response.
+ * Prefers `Retry-After` (delta seconds), falling back to `x-ratelimit-reset`
+ * (epoch seconds). Returns 0 when no hint is present.
+ */
+function rateLimitWaitMs(response: Response, rateLimit: RateLimit | null, nowMs: number): number {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter !== null) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.ceil(seconds * 1000);
+    }
+  }
+  if (rateLimit?.reset != null && Number.isFinite(rateLimit.reset)) {
+    return Math.max(0, rateLimit.reset * 1000 - nowMs);
+  }
+  return 0;
 }
 
 /**
@@ -79,6 +170,11 @@ function parseRateLimit(headers: Headers): RateLimit {
 export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
   const { token, apiUrl } = options;
   const doFetch = options.fetch ?? fetch;
+  const sleep = options.sleep ?? defaultSleep;
+  const now = options.now ?? Date.now;
+  const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const maxRateLimitWaitMs = options.maxRateLimitWaitMs ?? DEFAULT_MAX_RATE_LIMIT_WAIT_MS;
+  const networkBackoffMs = options.networkBackoffMs ?? DEFAULT_NETWORK_BACKOFF_MS;
 
   let rateLimit: RateLimit | null = null;
 
@@ -91,19 +187,71 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
     };
   }
 
+  /** Wraps a `Retry-After`/reset wait into a dated, fail-fast GitHubError. */
+  function rateLimitFailFast(waitMs: number): never {
+    const retryAt = new Date(now() + waitMs).toISOString();
+    throw new GitHubError(
+      `GitHub rate limit exceeded and the reset is ${Math.ceil(waitMs / 1000)}s away, ` +
+        `beyond the ${Math.ceil(maxRateLimitWaitMs / 1000)}s wait cap. Retry after ${retryAt}.`,
+      403,
+      rateLimit,
+    );
+  }
+
+  /**
+   * Performs a single request, retrying on rate-limit (403/429) and transient
+   * network failures up to {@link maxRetries} times. Rate-limit retries honor
+   * `Retry-After`/`x-ratelimit-reset` (capped); network retries use exponential
+   * backoff. Both waits go through the injectable {@link sleep}.
+   */
   async function request(url: string, headers: Record<string, string>): Promise<Response> {
-    const response = await doFetch(url, { headers });
-    rateLimit = parseRateLimit(response.headers);
-    return response;
+    let attempt = 0;
+    for (;;) {
+      let response: Response;
+      try {
+        response = await doFetch(url, { headers });
+      } catch (error) {
+        if (isTransientNetworkError(error) && attempt < maxRetries) {
+          await sleep(networkBackoffMs * 2 ** attempt);
+          attempt += 1;
+          continue;
+        }
+        if (isTransientNetworkError(error)) {
+          throw new NetworkError(
+            `Network request to GitHub failed after ${attempt + 1} attempts: ${(error as Error).message}.`,
+            error,
+          );
+        }
+        throw error;
+      }
+
+      rateLimit = parseRateLimit(response.headers);
+
+      if (isRateLimitedResponse(response, rateLimit) && attempt < maxRetries) {
+        const waitMs = rateLimitWaitMs(response, rateLimit, now());
+        if (waitMs > maxRateLimitWaitMs) {
+          rateLimitFailFast(waitMs);
+        }
+        await sleep(waitMs);
+        attempt += 1;
+        continue;
+      }
+
+      return response;
+    }
   }
 
   /** Turns a non-ok, non-304 response into a thrown {@link GitHubError}. */
   async function fail(response: Response): Promise<never> {
     const { status } = response;
-    const isRateLimited = status === 403 && rateLimit?.remaining === 0;
+    const isRateLimited = (status === 403 || status === 429) && rateLimit?.remaining === 0;
     let message: string;
     if (isRateLimited) {
       message = "GitHub rate limit exceeded (x-ratelimit-remaining is 0).";
+    } else if (status === 404) {
+      // 404 is ambiguous: the repo may not exist, or the token may simply lack
+      // access to a private repo (GitHub hides those behind a 404 on purpose).
+      message = "GitHub returned 404: the repo was not found or your token has no access to it.";
     } else {
       const detail = await readErrorMessage(response);
       message = `GitHub request failed with ${status}${detail ? `: ${detail}` : ""}.`;

@@ -64,6 +64,10 @@ export async function runSyncCommand(
 export function formatSyncResult(result: SyncResult): string {
   const lines: string[] = [];
   for (const r of result.repos) {
+    if (r.error) {
+      lines.push(`${r.repo}: failed (${r.error})`);
+      continue;
+    }
     if (r.notModified) {
       lines.push(`${r.repo}: unchanged`);
       continue;
