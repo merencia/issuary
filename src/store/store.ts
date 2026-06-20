@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { migrate } from "./migrations.js";
-import type { Issue, NewRepo, Repo, UpsertIssue } from "./types.js";
+import type { Issue, IssueEvent, NewRepo, Repo, UpsertIssue } from "./types.js";
 
 /** Raw column shape of a `repos` row as returned by better-sqlite3. */
 interface RepoRow {
@@ -38,6 +38,25 @@ interface IssueRow {
   compact_tldr: string | null;
   compact_stale: number;
   compacted_at: string | null;
+}
+
+/** Raw column shape of an `events` row as returned by better-sqlite3. */
+interface EventRow {
+  id: number;
+  issue_id: number;
+  type: string;
+  detected_at: string;
+  seen: number;
+}
+
+function rowToEvent(row: EventRow): IssueEvent {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    type: row.type,
+    detectedAt: row.detected_at,
+    seen: row.seen !== 0,
+  };
 }
 
 function rowToRepo(row: RepoRow): Repo {
@@ -130,6 +149,27 @@ export interface Store {
    * not exist.
    */
   setIssueRawComments(repoId: number, number: number, commentsJson: string, fetchedAt: string): Issue | undefined;
+
+  /**
+   * Records a change detected on an issue. Returns the persisted event row.
+   *
+   * @param issueId - The issue the event belongs to.
+   * @param type - One of `opened`, `closed`, `reopened`, `commented`, `closed_commented`.
+   * @param detectedAt - ISO-8601 timestamp of when the change was detected.
+   */
+  insertEvent(issueId: number, type: string, detectedAt: string): IssueEvent;
+
+  /**
+   * Sets the `compact_stale` flag on an issue by its id. A no-op when the issue
+   * does not exist.
+   */
+  setCompactStale(issueId: number, stale: boolean): void;
+
+  /**
+   * Updates a repo's sync bookkeeping (`last_synced_at` and `etag`) by id. A
+   * `null` etag is written as-is so callers can clear it.
+   */
+  updateRepoSync(repoId: number, sync: { lastSyncedAt: string; etag: string | null }): void;
 }
 
 /**
@@ -216,6 +256,13 @@ export function openStore(dbPath: string): Store {
       WHERE repo_id = ? AND number = ?
      RETURNING *`,
   );
+  const insertEventStmt = db.prepare<[number, string, string]>(
+    `INSERT INTO events (issue_id, type, detected_at) VALUES (?, ?, ?) RETURNING *`,
+  );
+  const setCompactStaleStmt = db.prepare<[number, number]>(`UPDATE issues SET compact_stale = ? WHERE id = ?`);
+  const updateRepoSyncStmt = db.prepare<[string, string | null, number]>(
+    `UPDATE repos SET last_synced_at = ?, etag = ? WHERE id = ?`,
+  );
 
   return {
     db,
@@ -296,6 +343,19 @@ export function openStore(dbPath: string): Store {
     setIssueRawComments(repoId: number, number: number, commentsJson: string, fetchedAt: string): Issue | undefined {
       const row = setIssueRawCommentsStmt.get(commentsJson, fetchedAt, repoId, number) as IssueRow | undefined;
       return row ? rowToIssue(row) : undefined;
+    },
+
+    insertEvent(issueId: number, type: string, detectedAt: string): IssueEvent {
+      const row = insertEventStmt.get(issueId, type, detectedAt) as EventRow;
+      return rowToEvent(row);
+    },
+
+    setCompactStale(issueId: number, stale: boolean): void {
+      setCompactStaleStmt.run(stale ? 1 : 0, issueId);
+    },
+
+    updateRepoSync(repoId: number, sync: { lastSyncedAt: string; etag: string | null }): void {
+      updateRepoSyncStmt.run(sync.lastSyncedAt, sync.etag, repoId);
     },
   };
 }
