@@ -99,6 +99,25 @@ describe("openStore", () => {
       expect(active).toHaveLength(1);
       expect(active[0].fullName).toBe("octo/b");
     });
+
+    describe("setRepoActive", () => {
+      it("deactivates and reactivates a repo without deleting it", () => {
+        store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" });
+
+        const deactivated = store.setRepoActive("octo/demo", false);
+        expect(deactivated?.active).toBe(false);
+        expect(store.getRepoByFullName("octo/demo")?.active).toBe(false);
+        expect(store.listRepos()).toHaveLength(1);
+
+        const reactivated = store.setRepoActive("octo/demo", true);
+        expect(reactivated?.active).toBe(true);
+        expect(store.getRepoByFullName("octo/demo")?.active).toBe(true);
+      });
+
+      it("returns undefined when no repo matches", () => {
+        expect(store.setRepoActive("ghost/repo", false)).toBeUndefined();
+      });
+    });
   });
 
   describe("issues", () => {

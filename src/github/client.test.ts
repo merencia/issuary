@@ -70,6 +70,35 @@ describe("parseRepo", () => {
   });
 });
 
+describe("getRepo", () => {
+  it("returns basic info from a 200 response", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      mockResponse({
+        body: { owner: { login: "octocat" }, name: "hello-world", full_name: "octocat/hello-world", private: false },
+      }),
+    );
+    const client = makeClient(fetchImpl as unknown as typeof fetch);
+
+    const info = await client.getRepo("octocat/hello-world");
+
+    const url = String((fetchImpl.mock.calls[0] as unknown[])[0]);
+    expect(url).toBe("https://api.github.com/repos/octocat/hello-world");
+    expect(info).toEqual({
+      owner: "octocat",
+      name: "hello-world",
+      fullName: "octocat/hello-world",
+      private: false,
+    });
+  });
+
+  it("throws GitHubError with status 404 when the repo is missing", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(mockResponse({ status: 404, body: { message: "Not Found" } }));
+    const client = makeClient(fetchImpl as unknown as typeof fetch);
+
+    await expect(client.getRepo("octo/missing")).rejects.toMatchObject({ name: "GitHubError", status: 404 });
+  });
+});
+
 describe("listIssues", () => {
   it("normalizes a 200 response, filters PRs, and returns the etag", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
