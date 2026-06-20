@@ -1,4 +1,4 @@
-import { bold, cyan, dim, green, red, yellow } from "./style.js";
+import { bold, dim, green, red, yellow } from "./style.js";
 import { BULLET, CHECK, CROSS } from "./symbols.js";
 
 export * from "./style.js";
@@ -63,11 +63,11 @@ export function repoHeader(repo: string): string {
 }
 
 /**
- * A count header line: the summary sentence with the leading count emphasized in
- * cyan. Pass the count and the rest of the sentence; the count is bolded.
+ * A count header line: the summary sentence with the leading count emphasized.
+ * Pass the count and the rest of the sentence; the count is bolded.
  */
 export function countHeader(count: number, rest: string): string {
-  return `${cyan(bold(String(count)))} ${rest}`;
+  return `${bold(String(count))} ${rest}`;
 }
 
 /** A dim bullet for list rows. */

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { clearStoredToken } from "../auth/credentials.js";
 import { loadConfig } from "../config/index.js";
-import { success } from "../render/index.js";
+import { dim, success } from "../render/index.js";
 
 /** Result of {@link runLogout}, mirrored in `--json` output. */
 export interface LogoutResult {
@@ -52,9 +52,7 @@ export function logoutCommand(): Command {
       if (options.json) {
         console.log(JSON.stringify(result));
       } else {
-        console.log(
-          result.removed ? success("Logged out. Stored token removed.") : success("No stored token to remove."),
-        );
+        console.log(result.removed ? success("Logged out. Stored token removed.") : dim("No stored token to remove."));
       }
     });
 }
