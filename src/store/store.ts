@@ -94,6 +94,12 @@ export interface Store {
   getRepoByFullName(fullName: string): Repo | undefined;
   /** Lists repos. Pass `activeOnly` to exclude deactivated repos. */
   listRepos(options?: { activeOnly?: boolean }): Repo[];
+  /**
+   * Sets a repo's `active` flag by `owner/name`. Returns the updated row, or
+   * undefined when no repo matches. Never deletes: deactivation preserves the
+   * repo's issues and compacts.
+   */
+  setRepoActive(fullName: string, active: boolean): Repo | undefined;
 
   /**
    * Inserts or updates an issue keyed by `(repoId, number)`. On conflict every
@@ -163,6 +169,7 @@ export function openStore(dbPath: string): Store {
   const getRepoByFullNameStmt = db.prepare<[string]>(`SELECT * FROM repos WHERE full_name = ?`);
   const listReposStmt = db.prepare(`SELECT * FROM repos ORDER BY full_name`);
   const listActiveReposStmt = db.prepare(`SELECT * FROM repos WHERE active = 1 ORDER BY full_name`);
+  const setRepoActiveStmt = db.prepare<[number, string]>(`UPDATE repos SET active = ? WHERE full_name = ? RETURNING *`);
 
   const upsertIssueStmt = db.prepare(
     `INSERT INTO issues (
@@ -233,6 +240,11 @@ export function openStore(dbPath: string): Store {
       const stmt = options?.activeOnly ? listActiveReposStmt : listReposStmt;
       const rows = stmt.all() as RepoRow[];
       return rows.map(rowToRepo);
+    },
+
+    setRepoActive(fullName: string, active: boolean): Repo | undefined {
+      const row = setRepoActiveStmt.get(active ? 1 : 0, fullName) as RepoRow | undefined;
+      return row ? rowToRepo(row) : undefined;
     },
 
     upsertIssue(issue: UpsertIssue): Issue {

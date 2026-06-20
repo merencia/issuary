@@ -16,6 +16,7 @@ function fakeClient(comments: NormalizedComment[]): GitHubClient {
   return {
     listIssues: vi.fn(),
     getComments: vi.fn(async () => comments),
+    getRepo: vi.fn(),
     rateLimit: null,
   };
 }

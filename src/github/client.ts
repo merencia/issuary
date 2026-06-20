@@ -7,6 +7,7 @@ import type {
   NormalizedComment,
   NormalizedIssue,
   RateLimit,
+  RepoInfo,
   RepoInput,
   RepoRef,
 } from "./types.js";
@@ -110,6 +111,26 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
     throw new GitHubError(message, status, rateLimit);
   }
 
+  async function getRepo(repo: RepoInput): Promise<RepoInfo> {
+    const { owner, name } = parseRepo(repo);
+    const response = await request(`${apiUrl}/repos/${owner}/${name}`, baseHeaders());
+    if (!response.ok) {
+      await fail(response);
+    }
+    const body = (await response.json()) as {
+      owner?: { login?: unknown };
+      name?: unknown;
+      full_name?: unknown;
+      private?: unknown;
+    };
+    return {
+      owner: typeof body.owner?.login === "string" ? body.owner.login : owner,
+      name: typeof body.name === "string" ? body.name : name,
+      fullName: typeof body.full_name === "string" ? body.full_name : `${owner}/${name}`,
+      private: body.private === true,
+    };
+  }
+
   async function listIssues(repo: RepoInput, listOptions: ListIssuesOptions = {}): Promise<ListIssuesResult> {
     const { owner, name } = parseRepo(repo);
     const params = new URLSearchParams({
@@ -183,6 +204,7 @@ export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
   }
 
   return {
+    getRepo,
     listIssues,
     getComments,
     get rateLimit(): RateLimit | null {

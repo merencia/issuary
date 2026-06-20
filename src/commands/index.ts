@@ -1,5 +1,8 @@
 import type { Command } from "commander";
+import { addCommand } from "./add.js";
 import { compactCommand } from "./compact.js";
+import { listCommand } from "./list.js";
+import { removeCommand } from "./remove.js";
 import { repoDigestCommand } from "./repo-digest.js";
 import { showCommand } from "./show.js";
 
@@ -12,6 +15,9 @@ import { showCommand } from "./show.js";
 export function registerCommands(program: Command): void {
   // Commands are added by feature tasks (add, remove, list, sync, digest,
   // repo-digest, show, compact, protocol). See .local/TASKS.md.
+  program.addCommand(addCommand());
+  program.addCommand(removeCommand());
+  program.addCommand(listCommand());
   program.addCommand(compactCommand());
   program.addCommand(repoDigestCommand());
   program.addCommand(showCommand());

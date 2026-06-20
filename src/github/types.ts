@@ -14,6 +14,23 @@ export interface RepoRef {
   name: string;
 }
 
+/**
+ * Basic repository metadata returned by {@link GitHubClient.getRepo}.
+ *
+ * Only the fields lore needs to confirm a repo exists and resolve its canonical
+ * `owner/name`. The API returns far more; the rest is ignored.
+ */
+export interface RepoInfo {
+  /** Repository owner login (canonical casing from the API). */
+  owner: string;
+  /** Repository name (canonical casing from the API). */
+  name: string;
+  /** `owner/name` as reported by the API (`full_name`). */
+  fullName: string;
+  /** Whether the repository is private. */
+  private: boolean;
+}
+
 /** Issue state as reported by the GitHub API. */
 export type IssueState = "open" | "closed";
 
@@ -105,6 +122,15 @@ export interface ListIssuesOptions {
  * than the most recently observed {@link RateLimit}.
  */
 export interface GitHubClient {
+  /**
+   * Fetches basic metadata for a repo, confirming it exists and is accessible.
+   *
+   * @param repo - `"owner/name"` or a {@link RepoRef}.
+   * @returns The repo's {@link RepoInfo}.
+   * @throws {GitHubError} With status 404 when the repo is missing or hidden by
+   *   the token's permissions, or other statuses on auth/rate-limit failures.
+   */
+  getRepo(repo: RepoInput): Promise<RepoInfo>;
   /**
    * Lists all issues (pull requests excluded) for a repo, following pagination.
    *

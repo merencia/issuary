@@ -11,6 +11,7 @@ export type {
   NormalizedComment,
   NormalizedIssue,
   RateLimit,
+  RepoInfo,
   RepoInput,
   RepoRef,
 } from "./types.js";
