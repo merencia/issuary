@@ -136,11 +136,33 @@ describe("formatSyncResult", () => {
       repos: [
         { repo: "a/x", notModified: false, opened: 2, closed: 1, reopened: 0, commented: 3, processed: 6, error: null },
         { repo: "b/y", notModified: true, opened: 0, closed: 0, reopened: 0, commented: 0, processed: 0, error: null },
-        { repo: "c/z", notModified: false, opened: 0, closed: 0, reopened: 0, commented: 0, processed: 4, error: null },
+        { repo: "c/z", notModified: false, opened: 0, closed: 0, reopened: 0, commented: 0, processed: 0, error: null },
       ],
     });
 
     expect(text).toBe(["a/x: 2 new, 1 closed, 3 new comments", "b/y: unchanged", "c/z: no changes"].join("\n"));
+  });
+
+  it("reports a silent baseline import (issues synced, no events) distinctly from no changes", () => {
+    const text = formatSyncResult({
+      repos: [
+        // First sync of an all-closed repo: 356 issues mirrored, 0 events.
+        {
+          repo: "a/x",
+          notModified: false,
+          opened: 0,
+          closed: 0,
+          reopened: 0,
+          commented: 0,
+          processed: 356,
+          error: null,
+        },
+        // Incremental sync that fetched nothing new.
+        { repo: "b/y", notModified: false, opened: 0, closed: 0, reopened: 0, commented: 0, processed: 0, error: null },
+      ],
+    });
+
+    expect(text).toBe(["a/x: no new activity (356 issues synced)", "b/y: no changes"].join("\n"));
   });
 
   it("surfaces a failed repo with its error message", () => {
