@@ -113,9 +113,16 @@ single watched repo. The fetch is incremental (see [How it works](#how-it-works)
 Requires `GITHUB_TOKEN`.
 
 - Argument (optional): `[repo]` as `owner/repo`.
+- `--quiet`: print nothing when there was no activity across all repos (no
+  events and no errors), so a scheduled/cron run stays silent on a no-op cycle.
+  A concise summary is still printed when something changed, and failed repos
+  are always printed. Has no effect on `--json`. See [Scheduling](#scheduling).
 - `--json` emits `{ "repos": [ { "repo", "notModified", "opened", "closed", "reopened", "commented", "processed" } ] }`,
   one entry per synced repo. `notModified` is `true` when the repo returned a 304
   (nothing changed); the counts are then all zero.
+
+The command exits `0` on success (even when nothing changed) and non-zero when
+any repo failed to sync, so a scheduler or monitor can detect failures.
 
 ### `lore digest`
 
@@ -251,6 +258,16 @@ with rules and worked examples, is in
   not disk space.
 - **Removal is deactivation.** `remove` deactivates a repo rather than deleting
   it, so its issues and compacts are preserved as history.
+
+## Scheduling
+
+`lore` is not a daemon. To keep the mirror fresh, let your OS scheduler run
+`lore sync --quiet` on an interval. Quiet mode stays silent on a no-op cycle (no
+events, no errors), prints a summary when something changed, always prints
+failed repos, and exits non-zero when any repo failed so a monitor can react.
+
+See [docs/scheduling.md](./docs/scheduling.md) for ready-to-use crontab and
+macOS launchd recipes, plus notes on rate limits and how failures surface.
 
 ## Development
 

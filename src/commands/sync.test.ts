@@ -8,7 +8,22 @@ import type {
   RepoInput,
 } from "../github/index.js";
 import { openStore, type Store } from "../store/index.js";
-import { formatSyncResult, runSyncCommand, SyncCommandError } from "./sync.js";
+import type { RepoSyncResult } from "../sync/index.js";
+import { formatSyncResult, formatSyncResultQuiet, runSyncCommand, SyncCommandError, syncExitCode } from "./sync.js";
+
+function repoResult(repo: string, overrides: Partial<RepoSyncResult> = {}): RepoSyncResult {
+  return {
+    repo,
+    notModified: false,
+    opened: 0,
+    closed: 0,
+    reopened: 0,
+    commented: 0,
+    processed: 0,
+    error: null,
+    ...overrides,
+  };
+}
 
 function makeIssue(number: number, overrides: Partial<NormalizedIssue> = {}): NormalizedIssue {
   return {
@@ -188,5 +203,61 @@ describe("formatSyncResult", () => {
         "b/y: failed (GitHub returned 404: the repo was not found or your token has no access to it.)",
       ].join("\n"),
     );
+  });
+});
+
+describe("formatSyncResultQuiet", () => {
+  it("returns an empty string when every repo is unchanged or had no activity", () => {
+    const text = formatSyncResultQuiet({
+      repos: [
+        repoResult("a/x", { notModified: true }),
+        repoResult("b/y"), // no-op incremental sync
+        repoResult("c/z", { processed: 356 }), // silent baseline import
+      ],
+    });
+
+    expect(text).toBe("");
+  });
+
+  it("returns only the repos with events, dropping the no-activity noise", () => {
+    const text = formatSyncResultQuiet({
+      repos: [
+        repoResult("a/x", { opened: 2, commented: 1, processed: 3 }),
+        repoResult("b/y", { notModified: true }),
+        repoResult("c/z", { closed: 1, processed: 1 }),
+      ],
+    });
+
+    expect(text).toBe(["a/x: 2 new, 1 new comments", "c/z: 1 closed"].join("\n"));
+  });
+
+  it("always includes failed repos, even when nothing else changed", () => {
+    const text = formatSyncResultQuiet({
+      repos: [repoResult("a/x", { notModified: true }), repoResult("b/y", { error: "GitHub returned 404." })],
+    });
+
+    expect(text).toBe("b/y: failed (GitHub returned 404.)");
+  });
+});
+
+describe("syncExitCode", () => {
+  it("is 0 when no repo failed, even with no changes", () => {
+    expect(
+      syncExitCode({
+        repos: [repoResult("a/x", { notModified: true }), repoResult("b/y")],
+      }),
+    ).toBe(0);
+  });
+
+  it("is 0 when repos had activity but none failed", () => {
+    expect(syncExitCode({ repos: [repoResult("a/x", { opened: 1, processed: 1 })] })).toBe(0);
+  });
+
+  it("is non-zero when any repo failed to sync", () => {
+    expect(
+      syncExitCode({
+        repos: [repoResult("a/x", { opened: 1, processed: 1 }), repoResult("b/y", { error: "boom" })],
+      }),
+    ).toBe(1);
   });
 });
