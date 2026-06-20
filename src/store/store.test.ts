@@ -314,6 +314,40 @@ describe("openStore", () => {
         expect(store.getRepo(repoId)?.etag).toBeNull();
       });
     });
+
+    describe("issue refs", () => {
+      it("listIssueRefs returns the inserted refs in order", () => {
+        store.replaceIssueRefs(issueId, ["#10", "owner/repo#45", "#20"]);
+        expect(store.listIssueRefs(issueId).map((r) => r.target)).toEqual(["#10", "owner/repo#45", "#20"]);
+      });
+
+      it("returns an empty list when an issue has no refs", () => {
+        expect(store.listIssueRefs(issueId)).toEqual([]);
+      });
+
+      it("replaceIssueRefs is idempotent for the same input", () => {
+        store.replaceIssueRefs(issueId, ["#10", "#20"]);
+        store.replaceIssueRefs(issueId, ["#10", "#20"]);
+        expect(store.listIssueRefs(issueId).map((r) => r.target)).toEqual(["#10", "#20"]);
+      });
+
+      it("replaceIssueRefs clears previous refs before inserting", () => {
+        store.replaceIssueRefs(issueId, ["#10", "#20"]);
+        store.replaceIssueRefs(issueId, ["#30"]);
+        expect(store.listIssueRefs(issueId).map((r) => r.target)).toEqual(["#30"]);
+      });
+
+      it("collapses duplicate targets in a single input", () => {
+        store.replaceIssueRefs(issueId, ["#10", "#10", "#20"]);
+        expect(store.listIssueRefs(issueId).map((r) => r.target)).toEqual(["#10", "#20"]);
+      });
+
+      it("clears all refs when given an empty list", () => {
+        store.replaceIssueRefs(issueId, ["#10"]);
+        store.replaceIssueRefs(issueId, []);
+        expect(store.listIssueRefs(issueId)).toEqual([]);
+      });
+    });
   });
 
   describe("listEvents and markEventsSeen", () => {

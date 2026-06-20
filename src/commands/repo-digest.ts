@@ -55,6 +55,8 @@ export interface RepoDigestIssue {
   compacted: boolean;
   /** Whether a compact exists but is stale (and therefore not used). */
   stale: boolean;
+  /** Explicit references parsed out of the issue (e.g. `#812`, `owner/repo#45`). */
+  refs: string[];
 }
 
 /** A single lean headline line: just enough to scan a whole project. */
@@ -157,6 +159,7 @@ export function runRepoDigest(store: Store, fullName: string): RepoDigestResult 
       representation: fresh ? issue.compact : issue.rawBody,
       compacted: fresh,
       stale: issue.compact != null && issue.compactStale,
+      refs: store.listIssueRefs(issue.id).map((ref) => ref.target),
     };
   });
   return { repo, summary, issues };
@@ -207,7 +210,8 @@ function renderFull(result: RepoDigestResult): string {
   for (const issue of result.issues) {
     const reason = issue.stateReason ? `/${issue.stateReason}` : "";
     const flag = issue.compacted ? "compact" : issue.stale ? "stale, raw" : "uncompacted, raw";
-    lines.push(`#${issue.number} [${issue.state}${reason}] (${flag}) ${issue.title}`);
+    const refs = issue.refs.length ? ` refs: ${issue.refs.length}` : "";
+    lines.push(`#${issue.number} [${issue.state}${reason}] (${flag})${refs} ${issue.title}`);
     if (issue.representation) {
       lines.push(issue.representation);
     }

@@ -43,6 +43,8 @@ export interface ShowResult {
   compact: string | null;
   compactStale: boolean;
   rawBody: string | null;
+  /** Explicit references parsed out of the issue (e.g. `#812`, `owner/repo#45`). */
+  refs: string[];
   /** Present only when `--raw` was requested. */
   comments?: NormalizedComment[];
 }
@@ -135,6 +137,7 @@ export async function runShow(
     compact: issue.compact,
     compactStale: issue.compactStale,
     rawBody: issue.rawBody,
+    refs: store.listIssueRefs(issue.id).map((ref) => ref.target),
   };
 
   if (options.raw) {
@@ -156,6 +159,7 @@ export function formatShow(result: ShowResult, options: ShowOptions): string {
   lines.push(`author: ${result.author ?? "unknown"}`);
   lines.push(`labels: ${result.labels.length ? result.labels.join(", ") : "(none)"}`);
   lines.push(`comments: ${result.commentCount}`);
+  lines.push(`references: ${result.refs.length ? result.refs.join(", ") : "(none)"}`);
   lines.push(`created: ${result.createdAt}`);
   lines.push(`updated: ${result.updatedAt}`);
   if (result.closedAt) {

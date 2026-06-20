@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubClient, NormalizedComment } from "../github/index.js";
 import { openStore, type Store } from "../store/index.js";
-import { runShow, ShowCommandError } from "./show.js";
+import { formatShow, runShow, ShowCommandError } from "./show.js";
 
 const SAMPLE_COMMENTS: NormalizedComment[] = [
   { id: 1, author: "octocat", created_at: "2024-01-02T00:00:00Z", updated_at: "2024-01-02T00:00:00Z", body: "first" },
@@ -147,6 +147,39 @@ describe("runShow", () => {
         rawBody: "the raw body",
         comments: SAMPLE_COMMENTS,
       });
+    });
+  });
+
+  describe("references", () => {
+    it("includes the issue's refs in the result", async () => {
+      const repo = seedIssue();
+      const issue = store.getIssue(repo.id, 7);
+      store.replaceIssueRefs(issue!.id, ["#12", "owner/repo#45"]);
+
+      const result = await runShow(store, "octo/demo#7", {});
+
+      expect(result.refs).toEqual(["#12", "owner/repo#45"]);
+    });
+
+    it("returns an empty refs array when the issue has none", async () => {
+      seedIssue();
+      const result = await runShow(store, "octo/demo#7", {});
+      expect(result.refs).toEqual([]);
+    });
+
+    it("renders a references line in human output", async () => {
+      const repo = seedIssue();
+      const issue = store.getIssue(repo.id, 7);
+      store.replaceIssueRefs(issue!.id, ["#12", "owner/repo#45"]);
+
+      const result = await runShow(store, "octo/demo#7", {});
+      expect(formatShow(result, {})).toContain("references: #12, owner/repo#45");
+    });
+
+    it("renders (none) when there are no references", async () => {
+      seedIssue();
+      const result = await runShow(store, "octo/demo#7", {});
+      expect(formatShow(result, {})).toContain("references: (none)");
     });
   });
 });

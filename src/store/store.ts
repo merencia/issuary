@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { migrate } from "./migrations.js";
-import type { EventWithContext, Issue, IssueEvent, NewRepo, Repo, UpsertIssue } from "./types.js";
+import type { EventWithContext, Issue, IssueEvent, IssueRef, NewRepo, Repo, UpsertIssue } from "./types.js";
 
 /** Raw column shape of a `repos` row as returned by better-sqlite3. */
 interface RepoRow {
@@ -75,6 +75,21 @@ function rowToEventWithContext(row: EventWithContextRow): EventWithContext {
     issueNumber: row.issue_number,
     issueTitle: row.issue_title,
     issueState: row.issue_state,
+  };
+}
+
+/** Raw column shape of a `refs` row as returned by better-sqlite3. */
+interface RefRow {
+  id: number;
+  issue_id: number;
+  target: string;
+}
+
+function rowToRef(row: RefRow): IssueRef {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    target: row.target,
   };
 }
 
@@ -217,6 +232,21 @@ export interface Store {
    * no-op for an empty list.
    */
   markEventsSeen(eventIds: number[]): void;
+
+  /**
+   * Replaces the set of explicit references for an issue: clears the issue's
+   * existing refs, then inserts the given normalized targets. Idempotent for a
+   * fixed input (re-running with the same targets yields the same rows) and uses
+   * `INSERT OR IGNORE` so duplicate targets within the input collapse via the
+   * `UNIQUE(issue_id, target)` constraint. Runs in a single transaction.
+   *
+   * @param issueId - The issue whose references are being set.
+   * @param targets - Normalized literal targets (e.g. `"#123"`, `"owner/repo#45"`).
+   */
+  replaceIssueRefs(issueId: number, targets: string[]): void;
+
+  /** Lists an issue's explicit references, ordered by insertion. */
+  listIssueRefs(issueId: number): IssueRef[];
 }
 
 /**
@@ -310,6 +340,11 @@ export function openStore(dbPath: string): Store {
   const updateRepoSyncStmt = db.prepare<[string, string | null, number]>(
     `UPDATE repos SET last_synced_at = ?, etag = ? WHERE id = ?`,
   );
+  const deleteIssueRefsStmt = db.prepare<[number]>(`DELETE FROM refs WHERE issue_id = ?`);
+  const insertIssueRefStmt = db.prepare<[number, string]>(
+    `INSERT OR IGNORE INTO refs (issue_id, target) VALUES (?, ?)`,
+  );
+  const listIssueRefsStmt = db.prepare<[number]>(`SELECT * FROM refs WHERE issue_id = ? ORDER BY id`);
 
   return {
     db,
@@ -448,6 +483,21 @@ export function openStore(dbPath: string): Store {
       }
       const placeholders = eventIds.map(() => "?").join(", ");
       db.prepare(`UPDATE events SET seen = 1 WHERE id IN (${placeholders})`).run(...eventIds);
+    },
+
+    replaceIssueRefs(issueId: number, targets: string[]): void {
+      const apply = db.transaction(() => {
+        deleteIssueRefsStmt.run(issueId);
+        for (const target of targets) {
+          insertIssueRefStmt.run(issueId, target);
+        }
+      });
+      apply();
+    },
+
+    listIssueRefs(issueId: number): IssueRef[] {
+      const rows = listIssueRefsStmt.all(issueId) as RefRow[];
+      return rows.map(rowToRef);
     },
   };
 }
