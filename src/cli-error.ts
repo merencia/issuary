@@ -1,5 +1,5 @@
 /**
- * Names of the typed errors lore raises for expected, user-facing failures.
+ * Names of the typed errors issuary raises for expected, user-facing failures.
  *
  * These carry a message written for a human, so the CLI prints just that line
  * (no stack trace) and exits non-zero. Anything else is treated as unexpected

@@ -8,7 +8,7 @@ export interface ListOptions {
   json?: boolean;
 }
 
-/** One repo as exposed by `lore list --json`. */
+/** One repo as exposed by `issuary list --json`. */
 export interface ListItem {
   repo: string;
   active: boolean;
@@ -17,7 +17,7 @@ export interface ListItem {
 }
 
 /**
- * Core action for `lore list`: returns the watched repos and their state,
+ * Core action for `issuary list`: returns the watched repos and their state,
  * ordered by `full_name`. Separated from the Commander wiring for testing.
  */
 export function runList(store: Store): ListItem[] {
@@ -34,7 +34,7 @@ export function runList(store: Store): ListItem[] {
  */
 export function formatList(items: ListItem[]): string {
   if (items.length === 0) {
-    return "No repos watched yet. Add one with `lore add owner/repo`.";
+    return "No repos watched yet. Add one with `issuary add owner/repo`.";
   }
 
   const active = items.filter((item) => item.active);

@@ -18,7 +18,7 @@ export interface RemoveResult {
 }
 
 /**
- * Core action for `lore remove`: deactivates a watched repo (sets `active = 0`).
+ * Core action for `issuary remove`: deactivates a watched repo (sets `active = 0`).
  * Never deletes, so issues and compacts are preserved for history.
  *
  * Separated from the Commander wiring for testing. The caller owns the

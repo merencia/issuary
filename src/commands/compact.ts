@@ -67,7 +67,7 @@ export class CompactCommandError extends Error {
 }
 
 /**
- * Core action for `lore compact set`: validates the target, looks up the repo
+ * Core action for `issuary compact set`: validates the target, looks up the repo
  * and issue, parses the compact file, and persists it via the store.
  *
  * Separated from the Commander wiring so it can be tested without spawning a
@@ -80,12 +80,12 @@ export function runCompactSet(store: Store, target: string, options: CompactSetO
 
   const repo = store.getRepoByFullName(fullName);
   if (!repo) {
-    throw new CompactCommandError(`Repo "${fullName}" is not watched. Add it with \`lore add ${fullName}\` first.`);
+    throw new CompactCommandError(`Repo "${fullName}" is not watched. Add it with \`issuary add ${fullName}\` first.`);
   }
 
   const issue = store.getIssue(repo.id, number);
   if (!issue) {
-    throw new CompactCommandError(`Issue ${fullName}#${number} is not in the local store. Run \`lore sync\` first.`);
+    throw new CompactCommandError(`Issue ${fullName}#${number} is not in the local store. Run \`issuary sync\` first.`);
   }
 
   let text: string;
@@ -134,9 +134,9 @@ export interface CompactListOptions {
 }
 
 /**
- * One issue as surfaced by `lore compact list`. Carries what an AI needs to
+ * One issue as surfaced by `issuary compact list`. Carries what an AI needs to
  * compact the issue directly: identity, status, and (for pending issues) the
- * raw body plus a hint that comments are fetched on demand via `lore show --raw`.
+ * raw body plus a hint that comments are fetched on demand via `issuary show --raw`.
  */
 export interface CompactListItem {
   /** The repo's `owner/name`. */
@@ -158,7 +158,7 @@ export interface CompactListItem {
   rawBody: string | null;
   /**
    * Whether comments may still need fetching. When true, an agent should run
-   * `lore show <repo>#<number> --raw` to pull the comment thread before compacting.
+   * `issuary show <repo>#<number> --raw` to pull the comment thread before compacting.
    */
   commentsNeedFetch: boolean;
 }
@@ -172,7 +172,7 @@ function compactStatus(issue: Issue): CompactStatus {
 }
 
 /**
- * Core action for `lore compact list`: walks the watched repos (or a single
+ * Core action for `issuary compact list`: walks the watched repos (or a single
  * repo via `options.repo`) and returns their issues with compaction status.
  * With `options.pending`, narrows to the actionable set (uncompacted or stale)
  * and stamps each with a `reason`. With `options.limit`, caps the number of
@@ -189,7 +189,7 @@ export function runCompactList(store: Store, options: CompactListOptions = {}): 
     const repo = store.getRepoByFullName(options.repo);
     if (!repo) {
       throw new CompactCommandError(
-        `Repo "${options.repo}" is not watched. Add it with \`lore add ${options.repo}\` first.`,
+        `Repo "${options.repo}" is not watched. Add it with \`issuary add ${options.repo}\` first.`,
       );
     }
     repos = [repo];
@@ -232,7 +232,7 @@ export function formatCompactList(items: CompactListItem[], options: { pending?:
   if (items.length === 0) {
     return options.pending
       ? "Nothing to compact. Every watched issue has a fresh compact."
-      : "No issues found. Run `lore sync` to mirror issues first.";
+      : "No issues found. Run `issuary sync` to mirror issues first.";
   }
 
   const byRepo = new Map<string, CompactListItem[]>();

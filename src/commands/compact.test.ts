@@ -63,7 +63,7 @@ describe("runCompactSet", () => {
   let filePath: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "lore-compact-"));
+    dir = mkdtempSync(join(tmpdir(), "issuary-compact-"));
     store = openStore(join(dir, "db.sqlite"));
     filePath = join(dir, "compact.md");
     writeFileSync(filePath, VALID_COMPACT, "utf8");
@@ -114,7 +114,7 @@ describe("runCompactSet", () => {
 
   it("errors when the issue is not in the local store", () => {
     store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" });
-    expect(() => runCompactSet(store, "octo/demo#7", { fromFile: filePath })).toThrow(/Run `lore sync` first/);
+    expect(() => runCompactSet(store, "octo/demo#7", { fromFile: filePath })).toThrow(/Run `issuary sync` first/);
   });
 
   it("errors when the file cannot be read", () => {
@@ -141,7 +141,7 @@ describe("runCompactList", () => {
   let store: Store;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "lore-compact-list-"));
+    dir = mkdtempSync(join(tmpdir(), "issuary-compact-list-"));
     store = openStore(join(dir, "db.sqlite"));
     seed();
   });

@@ -1,5 +1,5 @@
 /**
- * A repository being watched by lore.
+ * A repository being watched by issuary.
  */
 export interface Repo {
   id: number;

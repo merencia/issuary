@@ -8,7 +8,7 @@ describe("credentials store", () => {
   let home: string;
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), "lore-creds-"));
+    home = mkdtempSync(join(tmpdir(), "issuary-creds-"));
   });
 
   afterEach(() => {
@@ -21,7 +21,7 @@ describe("credentials store", () => {
   });
 
   it("creates the home directory if it does not exist", () => {
-    const nested = join(home, "deeper", "lore");
+    const nested = join(home, "deeper", "issuary");
     writeStoredToken(nested, "ghp_secret");
     expect(readStoredToken(nested)).toBe("ghp_secret");
   });
@@ -33,7 +33,7 @@ describe("credentials store", () => {
   });
 
   it("creates the home directory with mode 0700", () => {
-    const nested = join(home, "fresh", "lore");
+    const nested = join(home, "fresh", "issuary");
     writeStoredToken(nested, "ghp_secret");
     const mode = statSync(nested).mode & 0o777;
     expect(mode).toBe(0o700);

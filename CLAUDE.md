@@ -1,18 +1,17 @@
-# CLAUDE.md (lore)
+# CLAUDE.md (issuary)
 
 Guia para agentes de IA (e humanos) trabalhando neste repositório. Leia antes de
 implementar qualquer task.
 
 ## O que é
 
-`lore` é uma CLI que monitora issues de vários repositórios do GitHub. Mantém um
-espelho local incremental, detecta o que mudou desde a última sincronização, e
+`issuary` é uma CLI que monitora issues de vários repositórios do GitHub. Mantém
+um espelho local incremental, detecta o que mudou desde a última sincronização, e
 oferece uma camada de compactação (resumos estruturados) produzida e consumida
-por IAs. O nome é a *lore*: o conhecimento acumulado e destilado das issues de um
-projeto.
+por IAs. O nome é "issuary": um arquivo (issue + -ary) das issues de um projeto.
 
-- Pacote npm: `@merencia/lore` · binário: `lore`
-- Estado local: `~/.lore/db.sqlite` (override por `LORE_HOME`)
+- Pacote npm: `issuary` · binário: `issuary`
+- Estado local: `~/.issuary/db.sqlite` (override por `ISSUARY_HOME`)
 - Auth: `GITHUB_TOKEN` no ambiente · base URL via `GITHUB_API_URL` (Enterprise)
 
 ## Princípios (não violar)
@@ -61,7 +60,7 @@ Cada issue exposta tem `compact` (string|null) e `compact_stale` (bool).
    raw, não recompacte.
 2. `compact == null` OU `compact_stale == true` → leia `raw_body` +
    `raw_comments`, escreva um resumo no formato canônico e persista com
-   `lore compact set <owner/repo>#<n> --from-file <arquivo>`. Isso zera o stale.
+   `issuary compact set <owner/repo>#<n> --from-file <arquivo>`. Isso zera o stale.
 
 Formato canônico do compact (frontmatter copiado da API + corpo escrito pela IA):
 

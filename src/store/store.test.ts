@@ -48,7 +48,7 @@ describe("openStore", () => {
     });
 
     it("is idempotent when re-opened", () => {
-      const dir = mkdtempSync(join(tmpdir(), "lore-test-"));
+      const dir = mkdtempSync(join(tmpdir(), "issuary-test-"));
       const path = join(dir, "db.sqlite");
       try {
         const a = openStore(path);
@@ -424,23 +424,23 @@ describe("openStore", () => {
 });
 
 describe("defaultDbPath", () => {
-  const original = process.env.LORE_HOME;
+  const original = process.env.ISSUARY_HOME;
 
   afterEach(() => {
     if (original === undefined) {
-      delete process.env.LORE_HOME;
+      delete process.env.ISSUARY_HOME;
     } else {
-      process.env.LORE_HOME = original;
+      process.env.ISSUARY_HOME = original;
     }
   });
 
-  it("uses LORE_HOME when set", () => {
-    process.env.LORE_HOME = "/tmp/custom-lore";
-    expect(defaultDbPath()).toBe("/tmp/custom-lore/db.sqlite");
+  it("uses ISSUARY_HOME when set", () => {
+    process.env.ISSUARY_HOME = "/tmp/custom-issuary";
+    expect(defaultDbPath()).toBe("/tmp/custom-issuary/db.sqlite");
   });
 
-  it("falls back to ~/.lore when LORE_HOME is unset", () => {
-    delete process.env.LORE_HOME;
-    expect(defaultDbPath()).toMatch(/\.lore\/db\.sqlite$/);
+  it("falls back to ~/.issuary when ISSUARY_HOME is unset", () => {
+    delete process.env.ISSUARY_HOME;
+    expect(defaultDbPath()).toMatch(/\.issuary\/db\.sqlite$/);
   });
 });

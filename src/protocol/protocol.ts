@@ -19,9 +19,9 @@ export const COMPACT_FORMAT_DOC = "docs/compact-format.md";
  *
  * Asserted on by tests via substrings so the contract cannot silently drift.
  */
-export const COMPACTION_PROTOCOL = `lore compaction protocol (contract for AI consumers)
+export const COMPACTION_PROTOCOL = `issuary compaction protocol (contract for AI consumers)
 
-Each issue lore exposes carries two fields:
+Each issue issuary exposes carries two fields:
   - compact: string | null   the AI-written structured summary, or null if none
   - compact_stale: boolean    true when the compact no longer reflects the issue
 
@@ -34,7 +34,7 @@ Rule 2 (recompact when missing or stale):
   If compact == null OR compact_stale == true, read raw_body and raw_comments,
   write a fresh compact in the canonical format, and persist it:
 
-    lore compact set <owner/repo>#<n> --from-file <file>
+    issuary compact set <owner/repo>#<n> --from-file <file>
 
   Persisting a compact clears the stale flag.
 
@@ -65,5 +65,5 @@ export const COMPACT_FORMAT_SPEC: CompactFormatSpec = {
   doc: COMPACT_FORMAT_DOC,
   frontmatterFields: ["status", "state_reason", "refs", "versions", "labels"],
   bodyFields: ["tldr", "problem", "status_detail", "decisions", "open_questions"],
-  persistCommand: "lore compact set <owner/repo>#<n> --from-file <file>",
+  persistCommand: "issuary compact set <owner/repo>#<n> --from-file <file>",
 };

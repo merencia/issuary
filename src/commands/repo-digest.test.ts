@@ -25,7 +25,7 @@ describe("repo-digest actions", () => {
   let repoId: number;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "lore-repo-digest-"));
+    dir = mkdtempSync(join(tmpdir(), "issuary-repo-digest-"));
     store = openStore(join(dir, "db.sqlite"));
     const repo = store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" });
     repoId = repo.id;

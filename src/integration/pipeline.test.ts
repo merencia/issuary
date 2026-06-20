@@ -1,5 +1,5 @@
 /**
- * End-to-end integration tests for the lore pipeline.
+ * End-to-end integration tests for the issuary pipeline.
  *
  * These tests exercise the SEAMS between modules: they compose the real command
  * actions (`run*`), the real {@link runSync} engine, a real on-disk SQLite store,
@@ -135,7 +135,7 @@ let tmpDir: string;
 let store: Store;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), "lore-it-"));
+  tmpDir = mkdtempSync(join(tmpdir(), "issuary-it-"));
   dbPath = join(tmpDir, "db.sqlite");
   store = openStore(dbPath);
 });

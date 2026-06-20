@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createProgram } from "./program.js";
 
 describe("createProgram", () => {
-  it("is named lore", () => {
-    expect(createProgram().name()).toBe("lore");
+  it("is named issuary", () => {
+    expect(createProgram().name()).toBe("issuary");
   });
 
   it("exposes a version", () => {

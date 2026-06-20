@@ -18,11 +18,11 @@ export const SKILL_FORMATS: readonly SkillFormat[] = ["claude", "agents"];
 /** The default install format, kept as `claude` for back-compat. */
 export const DEFAULT_SKILL_FORMAT: SkillFormat = "claude";
 
-/** The marker that opens lore's managed section inside an `AGENTS.md`. */
-export const AGENTS_START_MARKER = "<!-- lore:start -->";
+/** The marker that opens issuary's managed section inside an `AGENTS.md`. */
+export const AGENTS_START_MARKER = "<!-- issuary:start -->";
 
-/** The marker that closes lore's managed section inside an `AGENTS.md`. */
-export const AGENTS_END_MARKER = "<!-- lore:end -->";
+/** The marker that closes issuary's managed section inside an `AGENTS.md`. */
+export const AGENTS_END_MARKER = "<!-- issuary:end -->";
 
 /** Options accepted by {@link runSkill} and the `skill` command action. */
 export interface SkillOptions {
@@ -69,7 +69,7 @@ export function resolveSkillsDir(dir?: string): string {
 /**
  * Resolves the absolute path the skill is (or would be) written to for a format.
  *
- * - `claude`: `<skillsDir>/lore/SKILL.md` (see {@link resolveSkillsDir}).
+ * - `claude`: `<skillsDir>/issuary/SKILL.md` (see {@link resolveSkillsDir}).
  * - `agents`: `<dir or cwd>/AGENTS.md`.
  *
  * @param format - The install format.
@@ -98,7 +98,7 @@ export interface SkillInstallResult {
 }
 
 /**
- * Builds the delimited lore section written into an `AGENTS.md`.
+ * Builds the delimited issuary section written into an `AGENTS.md`.
  *
  * The content is the same neutral skill body, wrapped in start/end markers so it
  * can be replaced in place on a re-install.
@@ -108,11 +108,11 @@ export function buildAgentsSection(): string {
 }
 
 /**
- * Inserts or replaces lore's delimited section in an existing `AGENTS.md` body.
+ * Inserts or replaces issuary's delimited section in an existing `AGENTS.md` body.
  *
  * If the markers are present, only the content between them is replaced (leaving
  * the rest untouched). If they are absent, the section is appended. The
- * operation is idempotent: running it twice yields exactly one lore section.
+ * operation is idempotent: running it twice yields exactly one issuary section.
  *
  * Assumes well-formed markers: a matching start before end. A file that was
  * hand-corrupted (a start without an end, or end before start) is treated as
@@ -139,7 +139,7 @@ export function upsertAgentsSection(existing: string): string {
 }
 
 /**
- * Core action for `lore skill`.
+ * Core action for `issuary skill`.
  *
  * Separated from the Commander wiring so it can be tested without spawning a
  * process. Behavior by option:
@@ -191,7 +191,7 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Builds the `skill` command. It emits lore's neutral agent skill, or installs
+ * Builds the `skill` command. It emits issuary's neutral agent skill, or installs
  * it for an AI agent: a Claude Code `SKILL.md` (`--format claude`, the default)
  * or a delimited section in a project `AGENTS.md` (`--format agents`). Printing
  * with no `--install` is the universal path: any agent can paste it into a system
@@ -201,7 +201,7 @@ async function fileExists(path: string): Promise<boolean> {
  */
 export function skillCommand(): Command {
   return new Command("skill")
-    .description("Print lore's agent skill, or install it for an AI agent (claude SKILL.md or AGENTS.md)")
+    .description("Print issuary's agent skill, or install it for an AI agent (claude SKILL.md or AGENTS.md)")
     .option("--install", "write the skill to disk instead of printing it")
     .option("--format <format>", `install format: ${SKILL_FORMATS.join("|")} (default ${DEFAULT_SKILL_FORMAT})`)
     .option("--dir <path>", "install directory (claude: skills root ~/.claude/skills; agents: dir holding AGENTS.md)")
@@ -211,7 +211,7 @@ export function skillCommand(): Command {
       if (options.install) {
         const { format, path, overwrote } = result as SkillInstallResult;
         const verb = overwrote ? "Updated" : "Wrote";
-        console.log(`${verb} lore skill (${format}) at ${path}`);
+        console.log(`${verb} issuary skill (${format}) at ${path}`);
         return;
       }
       if (options.json) {

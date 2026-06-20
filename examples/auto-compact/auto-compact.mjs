@@ -1,34 +1,34 @@
 #!/usr/bin/env node
 // @ts-nocheck
 /**
- * lore auto-compaction worker (example, NOT part of @merencia/lore).
+ * issuary auto-compaction worker (example, NOT part of issuary).
  *
- * The lore CORE never calls an LLM (see ../../CLAUDE.md, principle 2: "a tool e
- * burra, a IA e a CPU"). lore only stores raw issue content, exposes what needs
+ * The issuary CORE never calls an LLM (see ../../CLAUDE.md, principle 2: "a tool e
+ * burra, a IA e a CPU"). issuary only stores raw issue content, exposes what needs
  * compacting, and accepts the summary back. This worker is the "CPU": it reads
- * the pending set from lore, asks Claude for a compact in the canonical format,
+ * the pending set from issuary, asks Claude for a compact in the canonical format,
  * and writes it back. It lives here under examples/ so the published CLI keeps
  * no LLM dependency.
  *
  * Pipeline per run:
- *   1. lore compact list --pending --json --limit <BATCH>
+ *   1. issuary compact list --pending --json --limit <BATCH>
  *   2. for each pending issue:
- *        - if commentsNeedFetch, lore show <repo>#<n> --raw --json (full thread)
+ *        - if commentsNeedFetch, issuary show <repo>#<n> --raw --json (full thread)
  *        - otherwise use the rawBody already present
  *   3. ask Claude for the compact (canonical format, see ../../docs/compact-format.md)
  *   4. write the model output to a temp file
- *   5. lore compact set <repo>#<n> --from-file <tmp>
+ *   5. issuary compact set <repo>#<n> --from-file <tmp>
  *
  * Errors are handled per-issue: one bad issue is logged and skipped, the run
  * continues. A budget cap (--max) bounds how many issues a single run touches.
  *
  * Env vars:
  *   ANTHROPIC_API_KEY    required, the Claude API key.
- *   LORE_COMPACT_MODEL   optional, overrides the default model id.
- *   LORE_BIN             optional, path to the lore binary (default: "lore").
+ *   ISSUARY_COMPACT_MODEL   optional, overrides the default model id.
+ *   ISSUARY_BIN             optional, path to the issuary binary (default: "issuary").
  *
- * Run `lore sync` first (separately) so the local mirror is fresh; this worker
- * only reads what lore already has.
+ * Run `issuary sync` first (separately) so the local mirror is fresh; this worker
+ * only reads what issuary already has.
  */
 
 import { spawnSync } from "node:child_process";
@@ -38,12 +38,12 @@ import { join } from "node:path";
 
 /**
  * Default model: a small, fast, current Claude model for cheap bulk
- * summarization. Override with LORE_COMPACT_MODEL when you want a different tier.
+ * summarization. Override with ISSUARY_COMPACT_MODEL when you want a different tier.
  */
 const DEFAULT_MODEL = "claude-haiku-4-5";
 
-/** The lore binary to shell out to. Override via LORE_BIN. */
-const LORE_BIN = process.env.LORE_BIN || "lore";
+/** The issuary binary to shell out to. Override via ISSUARY_BIN. */
+const ISSUARY_BIN = process.env.ISSUARY_BIN || "issuary";
 
 /** Parse `--flag value` / `--flag=value` pairs from argv. */
 function parseArgs(argv) {
@@ -73,45 +73,45 @@ function parseArgs(argv) {
   return out;
 }
 
-const HELP = `lore auto-compaction worker (example)
+const HELP = `issuary auto-compaction worker (example)
 
 Usage: node auto-compact.mjs [options]
 
 Options:
-  --batch <n>   issues to pull from lore per run (passed to compact list --limit; default 50)
+  --batch <n>   issues to pull from issuary per run (passed to compact list --limit; default 50)
   --max <n>     hard budget cap on issues compacted this run (default 20)
   --repo <r>    restrict to a single watched repo (owner/repo)
   -h, --help    show this help
 
-Env: ANTHROPIC_API_KEY (required), LORE_COMPACT_MODEL, LORE_BIN`;
+Env: ANTHROPIC_API_KEY (required), ISSUARY_COMPACT_MODEL, ISSUARY_BIN`;
 
 /**
- * Run the lore CLI and return parsed JSON stdout. Throws on a non-zero exit or
+ * Run the issuary CLI and return parsed JSON stdout. Throws on a non-zero exit or
  * unparseable output so the caller can decide whether to skip or abort.
  */
-function runLoreJson(args) {
-  const result = spawnSync(LORE_BIN, args, { encoding: "utf8" });
+function runIssuaryJson(args) {
+  const result = spawnSync(ISSUARY_BIN, args, { encoding: "utf8" });
   if (result.error) {
-    throw new Error(`Failed to run "${LORE_BIN} ${args.join(" ")}": ${result.error.message}`);
+    throw new Error(`Failed to run "${ISSUARY_BIN} ${args.join(" ")}": ${result.error.message}`);
   }
   if (result.status !== 0) {
-    throw new Error(`"${LORE_BIN} ${args.join(" ")}" exited ${result.status}: ${result.stderr.trim()}`);
+    throw new Error(`"${ISSUARY_BIN} ${args.join(" ")}" exited ${result.status}: ${result.stderr.trim()}`);
   }
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
-    throw new Error(`Could not parse JSON from "${LORE_BIN} ${args.join(" ")}": ${error.message}`);
+    throw new Error(`Could not parse JSON from "${ISSUARY_BIN} ${args.join(" ")}": ${error.message}`);
   }
 }
 
-/** Run the lore CLI for its side effect, throwing on a non-zero exit. */
-function runLore(args) {
-  const result = spawnSync(LORE_BIN, args, { encoding: "utf8" });
+/** Run the issuary CLI for its side effect, throwing on a non-zero exit. */
+function runIssuary(args) {
+  const result = spawnSync(ISSUARY_BIN, args, { encoding: "utf8" });
   if (result.error) {
-    throw new Error(`Failed to run "${LORE_BIN} ${args.join(" ")}": ${result.error.message}`);
+    throw new Error(`Failed to run "${ISSUARY_BIN} ${args.join(" ")}": ${result.error.message}`);
   }
   if (result.status !== 0) {
-    throw new Error(`"${LORE_BIN} ${args.join(" ")}" exited ${result.status}: ${result.stderr.trim()}`);
+    throw new Error(`"${ISSUARY_BIN} ${args.join(" ")}" exited ${result.status}: ${result.stderr.trim()}`);
   }
   return result.stdout;
 }
@@ -151,7 +151,7 @@ function buildIssueText(item, full) {
  * in sync with ../../docs/compact-format.md; the model must output ONLY the
  * compact document (frontmatter + body), no prose around it.
  */
-const SYSTEM_PROMPT = `You compact a single GitHub issue into the canonical "lore compact" format.
+const SYSTEM_PROMPT = `You compact a single GitHub issue into the canonical "issuary compact" format.
 
 Output ONLY the compact document, nothing else: no preamble, no code fences, no commentary.
 
@@ -215,7 +215,7 @@ async function main() {
     return;
   }
 
-  const model = process.env.LORE_COMPACT_MODEL || DEFAULT_MODEL;
+  const model = process.env.ISSUARY_COMPACT_MODEL || DEFAULT_MODEL;
   // Imported lazily so --help and the env checks above work before
   // `npm install` has pulled the SDK into this example.
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -228,7 +228,7 @@ async function main() {
 
   let pending;
   try {
-    pending = runLoreJson(listArgs);
+    pending = runIssuaryJson(listArgs);
   } catch (error) {
     console.error(`Could not list pending issues: ${error.message}`);
     process.exitCode = 1;
@@ -244,7 +244,7 @@ async function main() {
   const work = pending.slice(0, budget);
   console.log(`Pending: ${pending.length}. Compacting up to ${work.length} this run with model ${model}.`);
 
-  const tmpDir = mkdtempSync(join(tmpdir(), "lore-auto-compact-"));
+  const tmpDir = mkdtempSync(join(tmpdir(), "issuary-auto-compact-"));
   let compacted = 0;
   let failed = 0;
   try {
@@ -253,7 +253,7 @@ async function main() {
       try {
         let full = null;
         if (item.commentsNeedFetch) {
-          full = runLoreJson(["show", target, "--raw", "--json"]);
+          full = runIssuaryJson(["show", target, "--raw", "--json"]);
         }
 
         const compact = await compactOne(client, model, item, full);
@@ -261,9 +261,9 @@ async function main() {
         const tmpFile = join(tmpDir, `${item.repo.replace(/\//g, "_")}-${item.number}.md`);
         writeFileSync(tmpFile, compact.endsWith("\n") ? compact : `${compact}\n`, "utf8");
 
-        // lore validates the compact on `set`; an invalid one throws here and
+        // issuary validates the compact on `set`; an invalid one throws here and
         // is treated as a per-issue failure rather than aborting the run.
-        runLore(["compact", "set", target, "--from-file", tmpFile]);
+        runIssuary(["compact", "set", target, "--from-file", tmpFile]);
         compacted += 1;
         console.log(`  compacted ${target} (${item.reason})`);
       } catch (error) {

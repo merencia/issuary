@@ -19,7 +19,7 @@ export interface Config {
   token: string;
   /** GitHub REST API base URL, trailing slash trimmed. */
   apiUrl: string;
-  /** Lore home directory holding local state. */
+  /** Issuary home directory holding local state. */
   home: string;
   /** Absolute path to the SQLite database file inside {@link Config.home}. */
   dbPath: string;
@@ -50,9 +50,9 @@ export class ConfigError extends Error {
 /**
  * Loads and validates configuration from the environment.
  *
- * Reads `GITHUB_TOKEN`, `GITHUB_API_URL` and `LORE_HOME`, applying defaults and
+ * Reads `GITHUB_TOKEN`, `GITHUB_API_URL` and `ISSUARY_HOME`, applying defaults and
  * normalization. The token is resolved in precedence order: the `GITHUB_TOKEN`
- * environment variable wins, then the token stored by `lore login` in the
+ * environment variable wins, then the token stored by `issuary login` in the
  * credentials file. Throws {@link ConfigError} when a required value is missing.
  *
  * @param options - Resolution options; see {@link LoadConfigOptions}.
@@ -63,16 +63,16 @@ export function loadConfig(options: LoadConfigOptions = {}): Config {
   const { requireToken = true } = options;
 
   const apiUrl = normalizeApiUrl(process.env.GITHUB_API_URL);
-  const home = (process.env.LORE_HOME ?? "").trim() || join(homedir(), ".lore");
+  const home = (process.env.ISSUARY_HOME ?? "").trim() || join(homedir(), ".issuary");
   const dbPath = join(home, "db.sqlite");
 
-  // Precedence: GITHUB_TOKEN env wins, then a token stored by `lore login`.
+  // Precedence: GITHUB_TOKEN env wins, then a token stored by `issuary login`.
   const envToken = (process.env.GITHUB_TOKEN ?? "").trim();
   const token = envToken || readStoredToken(home) || "";
   if (requireToken && token === "") {
     throw new ConfigError(
-      "No GitHub token found. lore needs a GitHub personal access token to reach the API. " +
-        "Either run `lore login` to authenticate via the browser, or create a token at " +
+      "No GitHub token found. issuary needs a GitHub personal access token to reach the API. " +
+        "Either run `issuary login` to authenticate via the browser, or create a token at " +
         "https://github.com/settings/tokens with the `repo` (or `public_repo`) read scope and " +
         "export it, e.g. `export GITHUB_TOKEN=ghp_...`.",
     );

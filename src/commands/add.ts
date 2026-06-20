@@ -50,7 +50,7 @@ export interface AddResult {
 }
 
 /**
- * Core action for `lore add`: validates the repo exists/accessible on GitHub,
+ * Core action for `issuary add`: validates the repo exists/accessible on GitHub,
  * then inserts it (or reactivates it if it was previously removed).
  *
  * Separated from the Commander wiring so it can be tested with an injected
