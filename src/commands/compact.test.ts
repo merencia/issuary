@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openStore, type Store } from "../store/index.js";
-import { CompactCommandError, parseTarget, runCompactSet } from "./compact.js";
+import {
+  CompactCommandError,
+  formatCompactList,
+  parseTarget,
+  runCompactList,
+  runCompactSet,
+  type CompactListItem,
+} from "./compact.js";
 
 const VALID_COMPACT = `---
 status: open
@@ -111,5 +118,163 @@ describe("runCompactSet", () => {
   it("errors on a malformed target", () => {
     seedIssue();
     expect(() => runCompactSet(store, "not-a-target", { fromFile: filePath })).toThrow(/owner\/repo#number/);
+  });
+});
+
+describe("runCompactList", () => {
+  let dir: string;
+  let store: Store;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "lore-compact-list-"));
+    store = openStore(join(dir, "db.sqlite"));
+    seed();
+  });
+
+  afterEach(() => {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * Seeds two repos with a mix of compaction states:
+   * - octo/demo#1 never compacted (uncompacted)
+   * - octo/demo#2 compacted but stale (stale)
+   * - octo/demo#3 freshly compacted (compacted)
+   * - other/lib#10 never compacted (uncompacted), with comments to fetch
+   */
+  function seed() {
+    const demo = store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" });
+    const lib = store.insertRepo({ owner: "other", name: "lib", fullName: "other/lib" });
+
+    store.upsertIssue({
+      repoId: demo.id,
+      number: 1,
+      title: "Never compacted bug",
+      state: "open",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      rawBody: "body for #1",
+    });
+    store.upsertIssue({
+      repoId: demo.id,
+      number: 2,
+      title: "Stale compact",
+      state: "closed",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      compact: "---\nstatus: closed\n---\ntldr: x\n",
+      compactTldr: "x",
+      compactStale: true,
+      rawBody: "body for #2",
+    });
+    store.upsertIssue({
+      repoId: demo.id,
+      number: 3,
+      title: "Fresh compact",
+      state: "open",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      compact: "---\nstatus: open\n---\ntldr: y\n",
+      compactTldr: "y",
+      compactStale: false,
+      rawBody: "body for #3",
+    });
+    store.upsertIssue({
+      repoId: lib.id,
+      number: 10,
+      title: "Lib issue",
+      state: "open",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      rawBody: "body for #10",
+      commentCount: 3,
+    });
+  }
+
+  function find(items: CompactListItem[], repo: string, number: number): CompactListItem | undefined {
+    return items.find((item) => item.repo === repo && item.number === number);
+  }
+
+  it("--pending returns only uncompacted and stale issues with a reason", () => {
+    const items = runCompactList(store, { pending: true });
+
+    expect(items.map((item) => [item.repo, item.number]).sort()).toEqual([
+      ["octo/demo", 1],
+      ["octo/demo", 2],
+      ["other/lib", 10],
+    ]);
+    expect(find(items, "octo/demo", 1)?.reason).toBe("uncompacted");
+    expect(find(items, "octo/demo", 2)?.reason).toBe("stale");
+    expect(find(items, "other/lib", 10)?.reason).toBe("uncompacted");
+    // The fresh compact must not appear.
+    expect(find(items, "octo/demo", 3)).toBeUndefined();
+  });
+
+  it("without --pending returns all issues with status and a null reason for fresh", () => {
+    const items = runCompactList(store);
+
+    expect(items).toHaveLength(4);
+    expect(find(items, "octo/demo", 1)?.status).toBe("uncompacted");
+    expect(find(items, "octo/demo", 2)?.status).toBe("stale");
+    expect(find(items, "octo/demo", 3)?.status).toBe("compacted");
+    expect(find(items, "octo/demo", 3)?.reason).toBeNull();
+  });
+
+  it("--repo restricts to a single repo", () => {
+    const items = runCompactList(store, { repo: "other/lib" });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ repo: "other/lib", number: 10, status: "uncompacted" });
+  });
+
+  it("errors when --repo names an unwatched repo", () => {
+    expect(() => runCompactList(store, { repo: "ghost/repo" })).toThrow(CompactCommandError);
+    expect(() => runCompactList(store, { repo: "ghost/repo" })).toThrow(/not watched/);
+  });
+
+  it("carries the raw body and a comments-need-fetch hint for AI consumers", () => {
+    const items = runCompactList(store, { pending: true });
+
+    const one = find(items, "octo/demo", 1);
+    expect(one?.rawBody).toBe("body for #1");
+    expect(one?.commentsNeedFetch).toBe(false);
+
+    const lib = find(items, "other/lib", 10);
+    expect(lib?.rawBody).toBe("body for #10");
+    // commentCount > 0 and raw_comments not yet fetched.
+    expect(lib?.commentsNeedFetch).toBe(true);
+  });
+
+  it("json shape matches the typed item", () => {
+    const items = runCompactList(store, { pending: true });
+    const parsed = JSON.parse(JSON.stringify(items)) as CompactListItem[];
+
+    const one = parsed.find((item) => item.repo === "octo/demo" && item.number === 1);
+    expect(one).toEqual({
+      repo: "octo/demo",
+      number: 1,
+      title: "Never compacted bug",
+      state: "open",
+      status: "uncompacted",
+      reason: "uncompacted",
+      rawBody: "body for #1",
+      commentsNeedFetch: false,
+    });
+  });
+
+  it("formats a human listing grouped by repo", () => {
+    const items = runCompactList(store);
+    const text = formatCompactList(items);
+
+    expect(text).toContain("octo/demo:");
+    expect(text).toContain("other/lib:");
+    expect(text).toContain("#1");
+    expect(text).toContain("uncompacted");
+    expect(text).toContain("Never compacted bug");
+  });
+
+  it("formats an empty pending listing with an all-clear message", () => {
+    expect(formatCompactList([], { pending: true })).toMatch(/Nothing to compact/);
   });
 });

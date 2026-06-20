@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { CompactValidationError, parseCompact } from "../compact/index.js";
 import { loadConfig } from "../config/index.js";
-import { openStore, type Store } from "../store/index.js";
+import { openStore, type Issue, type Repo, type Store } from "../store/index.js";
 
 /** A parsed `owner/repo#number` target. */
 interface CompactTarget {
@@ -98,13 +98,181 @@ export function runCompactSet(store: Store, target: string, options: CompactSetO
   return { ok: true, repo: fullName, number, tldr: parsed.tldr };
 }
 
+/** The compaction status of an issue, derived from `compact` and `compact_stale`. */
+export type CompactStatus = "compacted" | "stale" | "uncompacted";
+
+/** Why an issue appears in the pending set: never compacted, or compacted but stale. */
+export type CompactReason = "uncompacted" | "stale";
+
+/** Options for {@link runCompactList}. */
+export interface CompactListOptions {
+  /** Narrow to the actionable set: uncompacted or stale issues only. */
+  pending?: boolean;
+  /** Restrict to a single repo, as `owner/repo`. */
+  repo?: string;
+  /** Emit machine-readable JSON instead of human text. */
+  json?: boolean;
+}
+
 /**
- * Builds the `compact` command group with its `set` subcommand.
+ * One issue as surfaced by `lore compact list`. Carries what an AI needs to
+ * compact the issue directly: identity, status, and (for pending issues) the
+ * raw body plus a hint that comments are fetched on demand via `lore show --raw`.
+ */
+export interface CompactListItem {
+  /** The repo's `owner/name`. */
+  repo: string;
+  /** The issue number. */
+  number: number;
+  /** The issue title. */
+  title: string;
+  /** `open` or `closed`. */
+  state: string;
+  /** Compaction status: `compacted`, `stale`, or `uncompacted`. */
+  status: CompactStatus;
+  /**
+   * Why the issue is actionable. Present only for pending issues
+   * (`uncompacted` or `stale`); `null` for already-fresh compacts.
+   */
+  reason: CompactReason | null;
+  /** Raw issue body markdown, or null when not fetched yet. */
+  rawBody: string | null;
+  /**
+   * Whether comments may still need fetching. When true, an agent should run
+   * `lore show <repo>#<number> --raw` to pull the comment thread before compacting.
+   */
+  commentsNeedFetch: boolean;
+}
+
+/** Derives the {@link CompactStatus} of an issue from its compact fields. */
+function compactStatus(issue: Issue): CompactStatus {
+  if (issue.compact === null) {
+    return "uncompacted";
+  }
+  return issue.compactStale ? "stale" : "compacted";
+}
+
+/**
+ * Core action for `lore compact list`: walks the watched repos (or a single
+ * repo via `options.repo`) and returns their issues with compaction status.
+ * With `options.pending`, narrows to the actionable set (uncompacted or stale)
+ * and stamps each with a `reason`.
+ *
+ * Separated from the Commander wiring so it can be tested without spawning a
+ * process. The caller is responsible for opening/closing the {@link Store}.
+ *
+ * @throws {CompactCommandError} When `options.repo` names an unwatched repo.
+ */
+export function runCompactList(store: Store, options: CompactListOptions = {}): CompactListItem[] {
+  let repos: Repo[];
+  if (options.repo) {
+    const repo = store.getRepoByFullName(options.repo);
+    if (!repo) {
+      throw new CompactCommandError(
+        `Repo "${options.repo}" is not watched. Add it with \`lore add ${options.repo}\` first.`,
+      );
+    }
+    repos = [repo];
+  } else {
+    repos = store.listRepos();
+  }
+
+  const items: CompactListItem[] = [];
+  for (const repo of repos) {
+    for (const issue of store.listIssues(repo.id)) {
+      const status = compactStatus(issue);
+      const pending = status !== "compacted";
+      if (options.pending && !pending) {
+        continue;
+      }
+      items.push({
+        repo: repo.fullName,
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        status,
+        reason: pending ? status : null,
+        rawBody: issue.rawBody,
+        commentsNeedFetch: issue.rawComments === null && issue.commentCount > 0,
+      });
+    }
+  }
+  return items;
+}
+
+/**
+ * Renders the human-readable listing of {@link CompactListItem}s, grouped by
+ * repo. Each row shows the issue number, status, and title.
+ */
+export function formatCompactList(items: CompactListItem[], options: { pending?: boolean } = {}): string {
+  if (items.length === 0) {
+    return options.pending
+      ? "Nothing to compact. Every watched issue has a fresh compact."
+      : "No issues found. Run `lore sync` to mirror issues first.";
+  }
+
+  const byRepo = new Map<string, CompactListItem[]>();
+  for (const item of items) {
+    const bucket = byRepo.get(item.repo);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      byRepo.set(item.repo, [item]);
+    }
+  }
+
+  const lines: string[] = [];
+  for (const [repo, repoItems] of byRepo) {
+    if (lines.length > 0) {
+      lines.push("");
+    }
+    lines.push(`${repo}:`);
+    const numWidth = Math.max(...repoItems.map((item) => `#${item.number}`.length));
+    const statusWidth = Math.max(...repoItems.map((item) => item.status.length));
+    for (const item of repoItems) {
+      const num = `#${item.number}`.padEnd(numWidth);
+      const status = item.status.padEnd(statusWidth);
+      lines.push(`  ${num}  ${status}  ${item.title}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Builds the `compact` command group with its `set` and `list` subcommands.
  *
  * @see file://../../docs/compact-format.md
  */
 export function compactCommand(): Command {
   const compact = new Command("compact").description("Read and write AI-written compact summaries of issues");
+
+  compact
+    .command("list")
+    .description("List issues with their compaction status; --pending narrows to what needs compacting")
+    .option("--pending", "only issues that need compacting (uncompacted or stale)")
+    .option("--repo <owner/repo>", "restrict to a single watched repo")
+    .option("--json", "emit machine-readable JSON")
+    .action((options: CompactListOptions) => {
+      const config = loadConfig({ requireToken: false });
+      const store = openStore(config.dbPath);
+      try {
+        const items = runCompactList(store, options);
+        if (options.json) {
+          console.log(JSON.stringify(items));
+        } else {
+          console.log(formatCompactList(items, { pending: options.pending }));
+        }
+      } catch (error) {
+        if (error instanceof CompactCommandError) {
+          console.error(error.message);
+          process.exitCode = 1;
+          return;
+        }
+        throw error;
+      } finally {
+        store.close();
+      }
+    });
 
   compact
     .command("set")
