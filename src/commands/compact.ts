@@ -218,7 +218,7 @@ export function runCompactList(store: Store, options: CompactListOptions = {}): 
     }
   }
 
-  if (options.limit !== undefined && options.limit > 0 && items.length > options.limit) {
+  if (options.limit !== undefined && options.limit > 0) {
     return items.slice(0, options.limit);
   }
   return items;

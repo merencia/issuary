@@ -38,8 +38,7 @@ import { join } from "node:path";
 
 /**
  * Default model: a small, fast, current Claude model for cheap bulk
- * summarization. Verified against the claude-api skill (model catalog). Override
- * with LORE_COMPACT_MODEL when you want a different tier.
+ * summarization. Override with LORE_COMPACT_MODEL when you want a different tier.
  */
 const DEFAULT_MODEL = "claude-haiku-4-5";
 
@@ -54,10 +53,17 @@ function parseArgs(argv) {
     const eq = arg.indexOf("=");
     const [flag, inlineValue] = eq === -1 ? [arg, undefined] : [arg.slice(0, eq), arg.slice(eq + 1)];
     const next = () => (inlineValue !== undefined ? inlineValue : argv[(i += 1)]);
+    const intValue = (f) => {
+      const n = Number.parseInt(next(), 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new Error(`${f} expects a positive integer`);
+      }
+      return n;
+    };
     if (flag === "--batch") {
-      out.batch = Number.parseInt(next(), 10);
+      out.batch = intValue("--batch");
     } else if (flag === "--max") {
-      out.max = Number.parseInt(next(), 10);
+      out.max = intValue("--max");
     } else if (flag === "--repo") {
       out.repo = next();
     } else if (flag === "--help" || flag === "-h") {
@@ -175,8 +181,8 @@ Rules:
 /** Ask Claude for the compact document for one issue. Returns the raw text. */
 async function compactOne(client, model, item, full) {
   const userText = buildIssueText(item, full);
-  // Messages API shape per the claude-api skill: model + max_tokens + messages,
-  // content blocks narrowed by type. Default max_tokens is comfortable for a
+  // Anthropic Messages API shape: model + max_tokens + messages, content blocks
+  // narrowed by type. Default max_tokens is comfortable for a
   // small structured document; this is a non-streaming request.
   const message = await client.messages.create({
     model,
