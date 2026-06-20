@@ -1,3 +1,6 @@
+import { styleErr } from "./render/style.js";
+import { CROSS } from "./render/symbols.js";
+
 /**
  * Names of the typed errors issuary raises for expected, user-facing failures.
  *
@@ -40,7 +43,7 @@ export interface CliErrorSink {
  */
 export function handleCliError(error: unknown, sink: CliErrorSink = console): number {
   if (error instanceof Error && FRIENDLY_ERROR_NAMES.has(error.name)) {
-    sink.error(error.message);
+    sink.error(`${styleErr.red(CROSS)} ${error.message}`);
     return 1;
   }
 

@@ -15,6 +15,11 @@ export function createProgram(): Command {
 
   program.name("issuary").description(pkg.description).version(pkg.version);
 
+  // Discoverability only: the flag is resolved at module load in render/style.ts
+  // by reading process.argv directly, so formatters that run before Commander
+  // parses still see it. Declared here so it shows up in --help and is accepted.
+  program.option("--no-color", "disable colored output");
+
   registerCommands(program);
 
   program.addHelpText(

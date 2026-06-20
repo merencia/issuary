@@ -115,6 +115,14 @@ describe("runIssues", () => {
     expect(() => runIssues(store, { repo: ["octo/ghost"] })).toThrow(IssuesError);
   });
 
+  it("produces a --json envelope with no ANSI escape bytes", () => {
+    // The JSON path stringifies the raw result and never calls a formatter, so
+    // it must stay free of color even if color were enabled.
+    const json = JSON.stringify(runIssues(store, { state: "all" }));
+    // eslint-disable-next-line no-control-regex
+    expect(/\x1b\[/.test(json)).toBe(false);
+  });
+
   it("errors when more than one compaction flag is passed", () => {
     expect(() => runIssues(store, { uncompacted: true, stale: true })).toThrow(/mutually exclusive/);
     expect(() => runIssues(store, { stale: true, compacted: true })).toThrow(IssuesError);

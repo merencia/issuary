@@ -10,6 +10,7 @@ import {
 } from "../auth/device-flow.js";
 import { AuthError } from "../auth/errors.js";
 import { loadConfig } from "../config/index.js";
+import { bold, dim, success } from "../render/index.js";
 
 /** Result of a successful {@link runLogin}, mirrored in `--json` output. */
 export interface LoginResult {
@@ -109,8 +110,8 @@ export async function runLogin(deps: LoginDeps): Promise<LoginResult> {
     oauthHost: deps.oauthHost,
   });
 
-  log(`To authorize issuary, open ${device.verification_uri} and enter the code: ${device.user_code}`);
-  log("Waiting for you to authorize in the browser...");
+  log(`To authorize issuary, open ${device.verification_uri} and enter the code: ${bold(device.user_code)}`);
+  log(dim("Waiting for you to authorize in the browser..."));
 
   const token = await doPoll({
     clientId: deps.clientId,
@@ -159,7 +160,7 @@ export function loginCommand(): Command {
       if (options.json) {
         console.log(JSON.stringify(result));
       } else {
-        console.log(`Logged in as ${result.login}.`);
+        console.log(success(`Logged in as ${result.login}.`));
       }
     });
 }

@@ -30,6 +30,7 @@
   "dependencies": {
     "better-sqlite3": "^12.11.1",
     "commander": "^13.1.0",
+    "picocolors": "^1.1.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
+import { bold, bullet, dim } from "../render/index.js";
 import { openStore, type Repo, type Store } from "../store/index.js";
 
 /** Options for {@link runList}. */
@@ -42,11 +43,14 @@ export function formatList(items: ListItem[]): string {
   const width = Math.max(...items.map((item) => item.repo.length));
 
   const lines: string[] = [];
-  const render = (item: ListItem): string =>
-    `  ${item.repo.padEnd(width)}  last synced: ${item.lastSyncedAt ?? "never"}`;
+  const render = (item: ListItem): string => {
+    const name = item.active ? item.repo.padEnd(width) : dim(item.repo.padEnd(width));
+    const synced = item.lastSyncedAt ?? dim("never");
+    return `  ${bullet} ${name}  ${dim("last synced:")} ${synced}`;
+  };
 
   if (active.length > 0) {
-    lines.push("active:");
+    lines.push(bold("active:"));
     for (const item of active) {
       lines.push(render(item));
     }
@@ -55,7 +59,7 @@ export function formatList(items: ListItem[]): string {
     if (lines.length > 0) {
       lines.push("");
     }
-    lines.push("inactive:");
+    lines.push(bold("inactive:"));
     for (const item of inactive) {
       lines.push(render(item));
     }

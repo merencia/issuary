@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
 import { createGitHubClient, type GitHubClient } from "../github/index.js";
+import { CHECK, CROSS, dim, green, red } from "../render/index.js";
 import { openStore, type Repo, type Store } from "../store/index.js";
 import { runSync, type RepoSyncResult, type SyncResult } from "../sync/index.js";
 
@@ -79,10 +80,10 @@ function hasActivity(r: RepoSyncResult): boolean {
 /** Renders a single repo result as one human-readable line. */
 function formatRepoLine(r: RepoSyncResult): string {
   if (r.error) {
-    return `${r.repo}: failed (${r.error})`;
+    return `${red(CROSS)} ${r.repo}: failed (${r.error})`;
   }
   if (r.notModified) {
-    return `${r.repo}: unchanged`;
+    return `${green(CHECK)} ${r.repo}: ${dim("unchanged")}`;
   }
   const parts: string[] = [];
   if (r.opened > 0) parts.push(`${r.opened} new`);
@@ -90,16 +91,16 @@ function formatRepoLine(r: RepoSyncResult): string {
   if (r.reopened > 0) parts.push(`${r.reopened} reopened`);
   if (r.commented > 0) parts.push(`${r.commented} new comments`);
   if (parts.length > 0) {
-    return `${r.repo}: ${parts.join(", ")}`;
+    return `${green(CHECK)} ${r.repo}: ${green(parts.join(", "))}`;
   }
   if (r.processed > 0) {
     // Issues were fetched and mirrored but produced no noteworthy events. This
     // is the common case on a first sync of a repo whose issues are all closed
     // (closed issues are imported as a silent baseline). Saying "no changes"
     // here would wrongly imply nothing was stored.
-    return `${r.repo}: no new activity (${r.processed} issues synced)`;
+    return `${green(CHECK)} ${r.repo}: ${dim(`no new activity (${r.processed} issues synced)`)}`;
   }
-  return `${r.repo}: no changes`;
+  return `${green(CHECK)} ${r.repo}: ${dim("no changes")}`;
 }
 
 /** Renders a sync result as grouped, human-readable lines. */

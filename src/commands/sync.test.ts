@@ -155,7 +155,7 @@ describe("formatSyncResult", () => {
       ],
     });
 
-    expect(text).toBe(["a/x: 2 new, 1 closed, 3 new comments", "b/y: unchanged", "c/z: no changes"].join("\n"));
+    expect(text).toBe(["✓ a/x: 2 new, 1 closed, 3 new comments", "✓ b/y: unchanged", "✓ c/z: no changes"].join("\n"));
   });
 
   it("reports a silent baseline import (issues synced, no events) distinctly from no changes", () => {
@@ -177,7 +177,7 @@ describe("formatSyncResult", () => {
       ],
     });
 
-    expect(text).toBe(["a/x: no new activity (356 issues synced)", "b/y: no changes"].join("\n"));
+    expect(text).toBe(["✓ a/x: no new activity (356 issues synced)", "✓ b/y: no changes"].join("\n"));
   });
 
   it("surfaces a failed repo with its error message", () => {
@@ -199,8 +199,8 @@ describe("formatSyncResult", () => {
 
     expect(text).toBe(
       [
-        "a/x: 1 new",
-        "b/y: failed (GitHub returned 404: the repo was not found or your token has no access to it.)",
+        "✓ a/x: 1 new",
+        "✗ b/y: failed (GitHub returned 404: the repo was not found or your token has no access to it.)",
       ].join("\n"),
     );
   });
@@ -228,7 +228,7 @@ describe("formatSyncResultQuiet", () => {
       ],
     });
 
-    expect(text).toBe(["a/x: 2 new, 1 new comments", "c/z: 1 closed"].join("\n"));
+    expect(text).toBe(["✓ a/x: 2 new, 1 new comments", "✓ c/z: 1 closed"].join("\n"));
   });
 
   it("always includes failed repos, even when nothing else changed", () => {
@@ -236,7 +236,7 @@ describe("formatSyncResultQuiet", () => {
       repos: [repoResult("a/x", { notModified: true }), repoResult("b/y", { error: "GitHub returned 404." })],
     });
 
-    expect(text).toBe("b/y: failed (GitHub returned 404.)");
+    expect(text).toBe("✗ b/y: failed (GitHub returned 404.)");
   });
 });
 
