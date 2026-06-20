@@ -7,6 +7,7 @@ import { protocolCommand } from "./protocol.js";
 import { removeCommand } from "./remove.js";
 import { repoDigestCommand } from "./repo-digest.js";
 import { showCommand } from "./show.js";
+import { skillCommand } from "./skill.js";
 import { syncCommand } from "./sync.js";
 
 /**
@@ -26,5 +27,6 @@ export function registerCommands(program: Command): void {
   program.addCommand(digestCommand());
   program.addCommand(repoDigestCommand());
   program.addCommand(showCommand());
+  program.addCommand(skillCommand());
   program.addCommand(syncCommand());
 }

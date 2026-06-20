@@ -19,7 +19,7 @@ export function createProgram(): Command {
 
   program.addHelpText(
     "after",
-    "\nAI consumers: run `lore protocol` for the compaction contract (how to use, when to\nrecompact, and how to persist a compact). Add `--json` for the machine-readable form.",
+    "\nAI consumers: run `lore protocol` for the compaction contract (how to use, when to\nrecompact, and how to persist a compact). Add `--json` for the machine-readable form.\nAI agents: run `lore skill --install` to install lore as a discoverable agent skill.",
   );
 
   return program;
