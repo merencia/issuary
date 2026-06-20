@@ -4,6 +4,14 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { SKILL_DESCRIPTION, SKILL_MD, SKILL_NAME, type SkillFormat, type SkillJson } from "../skill/index.js";
 
+/** Raised for invalid `skill` command input, such as an unknown `--format`. */
+export class SkillCommandError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SkillCommandError";
+  }
+}
+
 /** The install formats the `skill` command accepts. */
 export const SKILL_FORMATS: readonly SkillFormat[] = ["claude", "agents"];
 
@@ -42,7 +50,7 @@ export interface SkillOptions {
 export function resolveFormat(format?: string): SkillFormat {
   const value = (format ?? "").trim() || DEFAULT_SKILL_FORMAT;
   if (!SKILL_FORMATS.includes(value as SkillFormat)) {
-    throw new Error(`Unknown skill format "${value}". Expected one of: ${SKILL_FORMATS.join(", ")}.`);
+    throw new SkillCommandError(`Unknown skill format "${value}". Expected one of: ${SKILL_FORMATS.join(", ")}.`);
   }
   return value as SkillFormat;
 }
@@ -105,6 +113,11 @@ export function buildAgentsSection(): string {
  * If the markers are present, only the content between them is replaced (leaving
  * the rest untouched). If they are absent, the section is appended. The
  * operation is idempotent: running it twice yields exactly one lore section.
+ *
+ * Assumes well-formed markers: a matching start before end. A file that was
+ * hand-corrupted (a start without an end, or end before start) is treated as
+ * having no managed section, so the next run appends a fresh one rather than
+ * trying to repair the damage.
  *
  * @param existing - The current `AGENTS.md` content (empty string if new).
  * @returns The updated file content.

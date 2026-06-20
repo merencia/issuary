@@ -3,7 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SKILL_DESCRIPTION, SKILL_MD, SKILL_NAME, type SkillJson } from "../skill/index.js";
-import { AGENTS_END_MARKER, AGENTS_START_MARKER, runSkill, type SkillInstallResult } from "./skill.js";
+import {
+  AGENTS_END_MARKER,
+  AGENTS_START_MARKER,
+  runSkill,
+  SkillCommandError,
+  type SkillInstallResult,
+} from "./skill.js";
 
 describe("runSkill", () => {
   it("returns the SKILL.md text by default", async () => {
@@ -31,9 +37,11 @@ describe("runSkill", () => {
     expect(JSON.parse(JSON.stringify(json))).toEqual(json);
   });
 
-  it("rejects an unknown format", async () => {
+  it("rejects an unknown format with a typed, friendly error", async () => {
     await expect(runSkill({ format: "bogus" })).rejects.toThrow(/Unknown skill format/);
     await expect(runSkill({ install: true, format: "bogus" })).rejects.toThrow(/Unknown skill format/);
+    // Typed so the global handler prints it as a friendly line, not "Unexpected error".
+    await expect(runSkill({ format: "bogus" })).rejects.toBeInstanceOf(SkillCommandError);
   });
 
   describe("--install (claude, default format)", () => {
