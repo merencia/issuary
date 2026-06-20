@@ -1,6 +1,6 @@
 export { createGitHubClient, parseRepo } from "./client.js";
 export type { GitHubClientOptions } from "./client.js";
-export { GitHubError } from "./errors.js";
+export { GitHubError, NetworkError } from "./errors.js";
 export { normalizeComment, normalizeIssue } from "./normalize.js";
 export type {
   GitHubClient,

@@ -18,6 +18,12 @@ export interface RepoSyncResult {
   commented: number;
   /** Total issues processed from the listing (0 when notModified). */
   processed: number;
+  /**
+   * Error message when this repo failed to sync (network, 404/private, ...).
+   * Null on success. A failed repo never advances its etag/last_synced_at, so a
+   * later run retries it cleanly.
+   */
+  error: string | null;
 }
 
 /** Aggregate result of a sync run across one or more repos. */
@@ -106,6 +112,7 @@ async function syncRepo(store: Store, client: GitHubClient, repo: Repo, now: () 
     reopened: 0,
     commented: 0,
     processed: 0,
+    error: null,
   };
 
   if (result.status === "notModified") {
@@ -176,6 +183,11 @@ async function syncRepo(store: Store, client: GitHubClient, repo: Repo, now: () 
  * Runs the sync engine over the given repos in sequence, returning a structured
  * summary. Each repo is synced independently in its own transaction.
  *
+ * A failure in one repo (network, 404/private, ...) is recorded in that repo's
+ * result and does not abort the run: the remaining repos are still synced. The
+ * per-repo transaction means a failed repo never advances its etag or
+ * `last_synced_at`, so a later run retries it from where it left off.
+ *
  * @param deps - Injected store, GitHub client, and optional clock.
  * @param repos - The repos to sync (typically the active set, or a single repo).
  * @returns The aggregate {@link SyncResult}.
@@ -184,7 +196,24 @@ export async function runSync(deps: SyncDeps, repos: Repo[]): Promise<SyncResult
   const now = deps.now ?? (() => new Date().toISOString());
   const results: RepoSyncResult[] = [];
   for (const repo of repos) {
-    results.push(await syncRepo(deps.store, deps.client, repo, now));
+    try {
+      results.push(await syncRepo(deps.store, deps.client, repo, now));
+    } catch (error) {
+      // Isolate the failure: record it and keep going with the other repos.
+      // No write happened for this repo (the listing threw before the
+      // transaction, or the transaction rolled back), so its etag and
+      // last_synced_at are untouched and the next run retries it.
+      results.push({
+        repo: repo.fullName,
+        notModified: false,
+        opened: 0,
+        closed: 0,
+        reopened: 0,
+        commented: 0,
+        processed: 0,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
   return { repos: results };
 }
