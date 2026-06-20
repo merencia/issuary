@@ -1,4 +1,4 @@
-# CLAUDE.md — lore
+# CLAUDE.md (lore)
 
 Guia para agentes de IA (e humanos) trabalhando neste repositório. Leia antes de
 implementar qualquer task.
@@ -129,4 +129,6 @@ types) + `test` na matrix com build. Um PR só é mergeável com o CI verde.
 4. Abra um PR contra `main` com título no formato Conventional Commits
    (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `refactor:`).
 5. Um revisor (`/pair-with merencia`) comenta no PR. Corrija até passar.
-6. Sem atribuição a IA em commits, PRs ou comentários. Sem em dash (`—`).
+6. Sem atribuição a IA em commits, PRs ou comentários. Nunca use o caractere
+   travessão longo (em dash, U+2014); use vírgula, ponto, dois-pontos ou
+   parênteses.
