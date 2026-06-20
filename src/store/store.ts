@@ -472,7 +472,10 @@ export function openStore(dbPath: string): Store {
     },
 
     queryIssues(filter: QueryIssuesFilter = {}): IssueWithRepo[] {
-      const conditions: string[] = [];
+      // Only issues from active repos: a repo removed via `remove` keeps its
+      // history but must not surface in listings, consistent with every other
+      // command.
+      const conditions: string[] = ["r.active = 1"];
       const params: (string | number)[] = [];
 
       if (filter.state && filter.state !== "all") {

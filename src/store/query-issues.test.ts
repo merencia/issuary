@@ -120,6 +120,14 @@ describe("queryIssues", () => {
     expect(rows).toHaveLength(2);
   });
 
+  it("excludes issues from deactivated repos", () => {
+    expect(store.queryIssues({ state: "all" })).toHaveLength(5);
+    store.setRepoActive("octo/beta", false);
+    const rows = store.queryIssues({ state: "all" });
+    expect(rows.every((r) => r.repoFullName === "octo/alpha")).toBe(true);
+    expect(rows).toHaveLength(3);
+  });
+
   it("filters by author", () => {
     const rows = store.queryIssues({ state: "all", author: "ann" });
     expect(ids(rows).sort()).toEqual(["octo/alpha#1", "octo/alpha#3"]);
