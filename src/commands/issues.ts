@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
+import { compactMark, countHeader, dim, labelChips, repoHeader, stateBadge } from "../render/index.js";
 import { openStore, type IssueWithRepo, type QueryIssuesFilter, type Store } from "../store/index.js";
 import { DigestError, resolveSince } from "./digest.js";
 
@@ -300,14 +301,6 @@ function describeFilters(filters: IssuesFilters): string {
   return parts.length > 0 ? ` (filter: ${parts.join(", ")})` : "";
 }
 
-/** The discreet compaction marker for a row, or empty when fresh-compacted. */
-function compactionMarker(issue: IssuesItem): string {
-  if (issue.compacted) {
-    return "";
-  }
-  return issue.stale ? " (stale)" : " (uncompacted)";
-}
-
 /** Pure formatter: renders an {@link IssuesResult} as human-readable text. */
 export function formatIssues(result: IssuesResult): string {
   const { summary, filters } = result;
@@ -317,7 +310,10 @@ export function formatIssues(result: IssuesResult): string {
 
   const stateWord = filters.state === "all" ? "issues" : `${filters.state} issues`;
   const repoWord = summary.repos === 1 ? "repo" : "repos";
-  const header = `${summary.total} ${stateWord} across ${summary.repos} ${repoWord}${describeFilters(filters)}`;
+  const header = countHeader(
+    summary.total,
+    `${stateWord} across ${summary.repos} ${repoWord}${describeFilters(filters)}`,
+  );
 
   const byRepo = new Map<string, IssuesItem[]>();
   for (const issue of result.issues) {
@@ -332,15 +328,15 @@ export function formatIssues(result: IssuesResult): string {
   const lines: string[] = [header];
   for (const [repo, repoIssues] of byRepo) {
     lines.push("");
-    lines.push(`${repo}:`);
+    lines.push(repoHeader(repo));
     const numWidth = Math.max(...repoIssues.map((i) => `#${i.number}`.length));
-    const stateWidth = Math.max(...repoIssues.map((i) => `[${i.state}]`.length));
+    const stateWidth = Math.max(...repoIssues.map((i) => i.state.length));
     for (const issue of repoIssues) {
-      const num = `#${issue.number}`.padEnd(numWidth);
-      const stateTag = `[${issue.state}]`.padEnd(stateWidth);
-      const labels = issue.labels.length ? ` {${issue.labels.join(", ")}}` : "";
-      const comments = issue.commentCount > 0 ? ` (${issue.commentCount}c)` : "";
-      lines.push(`  ${num}  ${stateTag}  ${issue.title}${labels}${comments}${compactionMarker(issue)}`);
+      const num = dim(`#${issue.number}`.padEnd(numWidth));
+      const stateTag = `[${stateBadge(issue.state, issue.state.padEnd(stateWidth))}]`;
+      const labels = labelChips(issue.labels);
+      const comments = issue.commentCount > 0 ? ` ${dim(`(${issue.commentCount}c)`)}` : "";
+      lines.push(`  ${num}  ${stateTag}  ${issue.title}${labels}${comments}${compactMark(issue)}`);
     }
   }
   return lines.join("\n");

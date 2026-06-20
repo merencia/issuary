@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
+import { bold, dim, stateBadge } from "../render/index.js";
 import { openStore, type EventWithContext, type Store } from "../store/index.js";
 
 /**
@@ -201,7 +202,7 @@ export function runDigest(store: Store, options: DigestOptions = {}): DigestResu
 
 /** Renders a single digest event line. */
 function formatEvent(event: DigestEvent): string {
-  return `    #${event.issueNumber} [${event.issueState}] ${event.issueTitle}`;
+  return `    ${dim(`#${event.issueNumber}`)} [${stateBadge(event.issueState)}] ${event.issueTitle}`;
 }
 
 /** Pure formatter: renders a {@link DigestResult} as human-readable text. */
@@ -215,10 +216,12 @@ export function formatDigest(result: DigestResult): string {
 
   const lines: string[] = [];
   for (const repo of result.repos) {
-    lines.push(repo.repo);
+    lines.push(bold(repo.repo));
     for (const group of repo.groups) {
+      // Group labels stay plain (not colored by type, per review); only the
+      // count is dimmed.
       const label = TYPE_LABELS.get(group.type) ?? group.type;
-      lines.push(`  ${label} (${group.events.length})`);
+      lines.push(`  ${label} ${dim(`(${group.events.length})`)}`);
       for (const event of group.events) {
         lines.push(formatEvent(event));
       }

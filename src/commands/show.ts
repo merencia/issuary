@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
 import { createGitHubClient, type GitHubClient, type NormalizedComment } from "../github/index.js";
+import { bold, dim, stateBadge, warn } from "../render/index.js";
 import { openStore, type Issue, type Store } from "../store/index.js";
 import { parseTarget } from "./compact.js";
 
@@ -154,16 +155,16 @@ export async function runShow(
 export function formatShow(result: ShowResult, options: ShowOptions): string {
   const lines: string[] = [];
   const reason = result.stateReason ? ` (${result.stateReason})` : "";
-  lines.push(`${result.repo}#${result.number} ${result.title}`);
-  lines.push(`state: ${result.state}${reason}`);
-  lines.push(`author: ${result.author ?? "unknown"}`);
-  lines.push(`labels: ${result.labels.length ? result.labels.join(", ") : "(none)"}`);
-  lines.push(`comments: ${result.commentCount}`);
-  lines.push(`references: ${result.refs.length ? result.refs.join(", ") : "(none)"}`);
-  lines.push(`created: ${result.createdAt}`);
-  lines.push(`updated: ${result.updatedAt}`);
+  lines.push(`${dim(`${result.repo}#${result.number}`)} ${bold(result.title)}`);
+  lines.push(`${dim("state:")} ${stateBadge(result.state)}${reason}`);
+  lines.push(`${dim("author:")} ${result.author ?? "unknown"}`);
+  lines.push(`${dim("labels:")} ${result.labels.length ? result.labels.join(", ") : "(none)"}`);
+  lines.push(`${dim("comments:")} ${result.commentCount}`);
+  lines.push(`${dim("references:")} ${result.refs.length ? result.refs.join(", ") : "(none)"}`);
+  lines.push(`${dim("created:")} ${result.createdAt}`);
+  lines.push(`${dim("updated:")} ${result.updatedAt}`);
   if (result.closedAt) {
-    lines.push(`closed: ${result.closedAt}`);
+    lines.push(`${dim("closed:")} ${result.closedAt}`);
   }
   lines.push("");
 
@@ -184,7 +185,7 @@ export function formatShow(result: ShowResult, options: ShowOptions): string {
     }
   } else if (result.compact) {
     if (result.compactStale) {
-      lines.push("(compact is stale)");
+      lines.push(warn("compact is stale"));
     }
     lines.push(result.compact);
   } else {

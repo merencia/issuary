@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
+import { bold, dim, stateBadge } from "../render/index.js";
 import { openStore, type Issue, type Store } from "../store/index.js";
 
 /**
@@ -190,8 +191,11 @@ export function runRepoDigestHeadlines(store: Store, fullName: string): RepoDige
 /** Formats the summary header line shared by both human renderings. */
 function formatSummary(repo: string, summary: RepoDigestSummary): string {
   return (
-    `${repo}: ${summary.total} issues (${summary.open} open, ${summary.closed} closed; ` +
-    `${summary.compacted} compacted, ${summary.staleOrUncompacted} stale/uncompacted)`
+    `${bold(`${repo}:`)} ${summary.total} issues ` +
+    dim(
+      `(${summary.open} open, ${summary.closed} closed; ` +
+        `${summary.compacted} compacted, ${summary.staleOrUncompacted} stale/uncompacted)`,
+    )
   );
 }
 
@@ -199,7 +203,7 @@ function formatSummary(repo: string, summary: RepoDigestSummary): string {
 function renderHeadlines(result: RepoDigestHeadlinesResult): string {
   const lines = [formatSummary(result.repo, result.summary), ""];
   for (const h of result.headlines) {
-    lines.push(`#${h.number} [${h.state}] ${h.headline}`);
+    lines.push(`${dim(`#${h.number}`)} [${stateBadge(h.state)}] ${h.headline}`);
   }
   return lines.join("\n");
 }
@@ -208,10 +212,12 @@ function renderHeadlines(result: RepoDigestHeadlinesResult): string {
 function renderFull(result: RepoDigestResult): string {
   const lines = [formatSummary(result.repo, result.summary), ""];
   for (const issue of result.issues) {
-    const reason = issue.stateReason ? `/${issue.stateReason}` : "";
+    const reason = issue.stateReason ? dim(`/${issue.stateReason}`) : "";
     const flag = issue.compacted ? "compact" : issue.stale ? "stale, raw" : "uncompacted, raw";
-    const refs = issue.refs.length ? ` refs: ${issue.refs.length}` : "";
-    lines.push(`#${issue.number} [${issue.state}${reason}] (${flag})${refs} ${issue.title}`);
+    const refs = issue.refs.length ? dim(` refs: ${issue.refs.length}`) : "";
+    lines.push(
+      `${dim(`#${issue.number}`)} [${stateBadge(issue.state)}${reason}] ${dim(`(${flag})`)}${refs} ${issue.title}`,
+    );
     if (issue.representation) {
       lines.push(issue.representation);
     }

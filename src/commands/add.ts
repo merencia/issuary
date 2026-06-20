@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
 import { createGitHubClient, type GitHubClient, GitHubError } from "../github/index.js";
+import { success } from "../render/index.js";
 import { openStore, type Store } from "../store/index.js";
 
 /** Parses an `owner/repo` argument into its parts. */
@@ -88,11 +89,11 @@ export async function runAdd(store: Store, client: GitHubClient, arg: string): P
 function addMessage(result: AddResult): string {
   switch (result.status) {
     case "added":
-      return `Now watching ${result.repo}.`;
+      return success(`Now watching ${result.repo}.`);
     case "reactivated":
-      return `Reactivated ${result.repo} (it was previously removed).`;
+      return success(`Reactivated ${result.repo} (it was previously removed).`);
     case "already-watched":
-      return `${result.repo} is already watched.`;
+      return success(`${result.repo} is already watched.`);
   }
 }
 

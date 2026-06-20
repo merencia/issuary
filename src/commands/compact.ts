@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { CompactValidationError, parseCompact } from "../compact/index.js";
 import { loadConfig } from "../config/index.js";
+import { dim, repoHeader, success, yellow } from "../render/index.js";
 import { openStore, type Issue, type Repo, type Store } from "../store/index.js";
 
 /** A parsed `owner/repo#number` target. */
@@ -224,6 +225,17 @@ export function runCompactList(store: Store, options: CompactListOptions = {}): 
   return items;
 }
 
+/** Colors a compaction status: stale in yellow, uncompacted dim, compacted plain. */
+function colorStatus(status: CompactStatus, text: string): string {
+  if (status === "stale") {
+    return yellow(text);
+  }
+  if (status === "uncompacted") {
+    return dim(text);
+  }
+  return text;
+}
+
 /**
  * Renders the human-readable listing of {@link CompactListItem}s, grouped by
  * repo. Each row shows the issue number, status, and title.
@@ -250,12 +262,12 @@ export function formatCompactList(items: CompactListItem[], options: { pending?:
     if (lines.length > 0) {
       lines.push("");
     }
-    lines.push(`${repo}:`);
+    lines.push(repoHeader(repo));
     const numWidth = Math.max(...repoItems.map((item) => `#${item.number}`.length));
     const statusWidth = Math.max(...repoItems.map((item) => item.status.length));
     for (const item of repoItems) {
-      const num = `#${item.number}`.padEnd(numWidth);
-      const status = item.status.padEnd(statusWidth);
+      const num = dim(`#${item.number}`.padEnd(numWidth));
+      const status = colorStatus(item.status, item.status.padEnd(statusWidth));
       lines.push(`  ${num}  ${status}  ${item.title}`);
     }
   }
@@ -313,7 +325,7 @@ export function compactCommand(): Command {
         if (options.json) {
           console.log(JSON.stringify(result));
         } else {
-          console.log(`Saved compact for ${result.repo}#${result.number}: ${result.tldr}`);
+          console.log(success(`Saved compact for ${result.repo}#${result.number}: ${result.tldr}`));
         }
       } catch (error) {
         if (error instanceof CompactCommandError) {

@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { loadConfig } from "../config/index.js";
+import { success } from "../render/index.js";
 import { openStore, type Store } from "../store/index.js";
 import { parseRepoArg, RepoCommandError } from "./add.js";
 
@@ -45,8 +46,8 @@ export function runRemove(store: Store, arg: string, _options: RemoveOptions = {
 /** Human-readable line for a successful {@link runRemove}. */
 function removeMessage(result: RemoveResult): string {
   return result.status === "removed"
-    ? `Stopped watching ${result.repo}. Its history and compacts are kept.`
-    : `${result.repo} was already not being watched.`;
+    ? success(`Stopped watching ${result.repo}. Its history and compacts are kept.`)
+    : success(`${result.repo} was already not being watched.`);
 }
 
 /** Builds the `remove` command. */

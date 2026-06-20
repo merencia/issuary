@@ -17,7 +17,7 @@ describe("handleCliError", () => {
     const code = handleCliError(error, sink);
 
     expect(code).toBe(1);
-    expect(sink.lines).toEqual(["GITHUB_TOKEN is not set."]);
+    expect(sink.lines).toEqual(["✗ GITHUB_TOKEN is not set."]);
     expect(sink.lines[0]).not.toContain("at ");
     expect(sink.lines[0]).not.toContain("ConfigError");
   });
@@ -32,7 +32,7 @@ describe("handleCliError", () => {
     const code = handleCliError(error, sink);
 
     expect(code).toBe(1);
-    expect(sink.lines).toEqual(["GitHub returned 404: the repo was not found or your token has no access to it."]);
+    expect(sink.lines).toEqual(["✗ GitHub returned 404: the repo was not found or your token has no access to it."]);
   });
 
   it("treats a NetworkError as friendly", () => {
@@ -42,7 +42,7 @@ describe("handleCliError", () => {
     const code = handleCliError(error, sink);
 
     expect(code).toBe(1);
-    expect(sink.lines).toEqual(["Network request to GitHub failed after 3 attempts: fetch failed."]);
+    expect(sink.lines).toEqual(["✗ Network request to GitHub failed after 3 attempts: fetch failed."]);
   });
 
   it("shows more detail for an unknown error and still exits non-zero", () => {
