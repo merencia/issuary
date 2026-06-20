@@ -180,6 +180,28 @@ describe("openStore", () => {
     it("enforces the foreign key to repos", () => {
       expect(() => store.upsertIssue(makeIssue({ repoId: 9999, number: 1 }))).toThrow(/FOREIGN KEY/i);
     });
+
+    describe("setCompact", () => {
+      it("sets compact and tldr, clears stale, and stamps compacted_at", () => {
+        store.upsertIssue(makeIssue({ repoId, number: 7, compactStale: true }));
+
+        const updated = store.setCompact(repoId, 7, { compact: "---\nstatus: open\n---\ntldr: hi", tldr: "hi" });
+
+        expect(updated).toBeDefined();
+        expect(updated?.compact).toBe("---\nstatus: open\n---\ntldr: hi");
+        expect(updated?.compactTldr).toBe("hi");
+        expect(updated?.compactStale).toBe(false);
+        expect(updated?.compactedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+        const reread = store.getIssue(repoId, 7);
+        expect(reread?.compactStale).toBe(false);
+        expect(reread?.compactTldr).toBe("hi");
+      });
+
+      it("returns undefined for an unknown issue", () => {
+        expect(store.setCompact(repoId, 999, { compact: "x", tldr: "y" })).toBeUndefined();
+      });
+    });
   });
 
   describe("events and refs foreign keys", () => {
