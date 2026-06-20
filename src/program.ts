@@ -17,5 +17,10 @@ export function createProgram(): Command {
 
   registerCommands(program);
 
+  program.addHelpText(
+    "after",
+    "\nAI consumers: run `lore protocol` for the compaction contract (how to use, when to\nrecompact, and how to persist a compact). Add `--json` for the machine-readable form.",
+  );
+
   return program;
 }
