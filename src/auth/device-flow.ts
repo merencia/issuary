@@ -149,7 +149,7 @@ export async function pollForAccessToken(options: PollForAccessTokenOptions): Pr
 
   for (;;) {
     if (now() >= deadline) {
-      throw new AuthError("Device login timed out before it was authorized. Run `lore login` again.");
+      throw new AuthError("Device login timed out before it was authorized. Run `issuary login` again.");
     }
 
     await sleep(intervalSeconds * 1000);
@@ -193,7 +193,7 @@ export async function pollForAccessToken(options: PollForAccessTokenOptions): Pr
         );
         continue;
       case "expired_token":
-        throw new AuthError("The device code expired before login was authorized. Run `lore login` again.");
+        throw new AuthError("The device code expired before login was authorized. Run `issuary login` again.");
       case "access_denied":
         throw new AuthError("Device login was denied. You cancelled or rejected the authorization.");
       default:

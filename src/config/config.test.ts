@@ -8,12 +8,12 @@ describe("loadConfig", () => {
   let home: string;
 
   beforeEach(() => {
-    // Point LORE_HOME at an empty temp dir so the stored-token fallback is
-    // hermetic and never reads a real ~/.lore/credentials.json.
-    home = mkdtempSync(join(tmpdir(), "lore-config-"));
+    // Point ISSUARY_HOME at an empty temp dir so the stored-token fallback is
+    // hermetic and never reads a real ~/.issuary/credentials.json.
+    home = mkdtempSync(join(tmpdir(), "issuary-config-"));
     vi.stubEnv("GITHUB_TOKEN", "");
     vi.stubEnv("GITHUB_API_URL", "");
-    vi.stubEnv("LORE_HOME", home);
+    vi.stubEnv("ISSUARY_HOME", home);
   });
 
   afterEach(() => {
@@ -54,7 +54,7 @@ describe("loadConfig", () => {
       expect(message).toMatch(/scope/i);
     });
 
-    it("mentions `lore login` in the missing-token error message", () => {
+    it("mentions `issuary login` in the missing-token error message", () => {
       vi.stubEnv("GITHUB_TOKEN", "");
       let message = "";
       try {
@@ -62,7 +62,7 @@ describe("loadConfig", () => {
       } catch (err) {
         message = (err as Error).message;
       }
-      expect(message).toContain("lore login");
+      expect(message).toContain("issuary login");
     });
 
     it("does not require a token when requireToken is false", () => {
@@ -126,30 +126,30 @@ describe("loadConfig", () => {
   });
 
   describe("home and dbPath", () => {
-    it("defaults home to ~/.lore", () => {
+    it("defaults home to ~/.issuary", () => {
       vi.stubEnv("GITHUB_TOKEN", "ghp_secret");
-      vi.stubEnv("LORE_HOME", undefined);
-      expect(loadConfig().home).toBe(join(homedir(), ".lore"));
+      vi.stubEnv("ISSUARY_HOME", undefined);
+      expect(loadConfig().home).toBe(join(homedir(), ".issuary"));
     });
 
     it("derives dbPath from the default home", () => {
       vi.stubEnv("GITHUB_TOKEN", "ghp_secret");
-      vi.stubEnv("LORE_HOME", undefined);
-      expect(loadConfig().dbPath).toBe(join(homedir(), ".lore", "db.sqlite"));
+      vi.stubEnv("ISSUARY_HOME", undefined);
+      expect(loadConfig().dbPath).toBe(join(homedir(), ".issuary", "db.sqlite"));
     });
 
-    it("honors LORE_HOME override", () => {
+    it("honors ISSUARY_HOME override", () => {
       vi.stubEnv("GITHUB_TOKEN", "ghp_secret");
-      vi.stubEnv("LORE_HOME", "/tmp/custom-lore");
+      vi.stubEnv("ISSUARY_HOME", "/tmp/custom-issuary");
       const config = loadConfig();
-      expect(config.home).toBe("/tmp/custom-lore");
-      expect(config.dbPath).toBe(join("/tmp/custom-lore", "db.sqlite"));
+      expect(config.home).toBe("/tmp/custom-issuary");
+      expect(config.dbPath).toBe(join("/tmp/custom-issuary", "db.sqlite"));
     });
 
-    it("falls back to the default home when LORE_HOME is whitespace", () => {
+    it("falls back to the default home when ISSUARY_HOME is whitespace", () => {
       vi.stubEnv("GITHUB_TOKEN", "ghp_secret");
-      vi.stubEnv("LORE_HOME", "   ");
-      expect(loadConfig().home).toBe(join(homedir(), ".lore"));
+      vi.stubEnv("ISSUARY_HOME", "   ");
+      expect(loadConfig().home).toBe(join(homedir(), ".issuary"));
     });
   });
 });

@@ -39,19 +39,19 @@ function resolveRepos(store: Store, repo: string | undefined): Repo[] {
   if (repo) {
     const found = store.getRepoByFullName(repo);
     if (!found) {
-      throw new SyncCommandError(`Repo "${repo}" is not watched. Add it with \`lore add ${repo}\` first.`);
+      throw new SyncCommandError(`Repo "${repo}" is not watched. Add it with \`issuary add ${repo}\` first.`);
     }
     return [found];
   }
   const active = store.listRepos({ activeOnly: true });
   if (active.length === 0) {
-    throw new SyncCommandError("No active repos to sync. Add one with `lore add <owner/repo>`.");
+    throw new SyncCommandError("No active repos to sync. Add one with `issuary add <owner/repo>`.");
   }
   return active;
 }
 
 /**
- * Core action for `lore sync [repo]`: resolves the target repos and runs the
+ * Core action for `issuary sync [repo]`: resolves the target repos and runs the
  * diff engine over them. Separated from the Commander wiring so it can be tested
  * without spawning a process. The caller owns the {@link Store} and client.
  *
@@ -131,7 +131,7 @@ export function syncExitCode(result: SyncResult): number {
 /**
  * Builds the `sync` command.
  *
- * `lore sync [repo]` hits the GitHub API, so a token is required. The action is
+ * `issuary sync [repo]` hits the GitHub API, so a token is required. The action is
  * kept thin: it wires config, store, and client, then delegates to
  * {@link runSyncCommand}.
  */

@@ -3,7 +3,7 @@
 This is the canonical, authoritative spec of a **compact**: the AI-written,
 structured summary of a single GitHub issue. It is the expanded source of truth
 behind the condensed protocol in [CLAUDE.md](../CLAUDE.md) and the text emitted
-by `lore protocol`. If anything here conflicts with a shorter restatement
+by `issuary protocol`. If anything here conflicts with a shorter restatement
 elsewhere, this document wins.
 
 The goal is precision: two different AI agents reading the same issue should
@@ -122,7 +122,7 @@ These rules make compacts consistent across agents and clean to re-generate.
 A compact is consumed at two levels so cost matches need.
 
 - **Headline level (`tldr`).** The `tldr` is stored separately from the rest of
-  the body. `lore repo-digest --headlines` can list every issue in a project
+  the body. `issuary repo-digest --headlines` can list every issue in a project
   using only its `tldr`, costing roughly 20 tokens per issue. An agent can scan
   an entire repository's open and recent issues for a few hundred tokens.
 - **Full level (body).** The full body (`problem`, `status_detail`,
@@ -144,7 +144,7 @@ on, so compacts can go stale.
   trusting it.
 
 The protocol an agent follows (see [CLAUDE.md](../CLAUDE.md) and
-`lore protocol`):
+`issuary protocol`):
 
 1. If the issue has a compact and it is **not** stale
    (`compact != null` and `compact_stale == false`): **use the compact.** Do
@@ -155,7 +155,7 @@ The protocol an agent follows (see [CLAUDE.md](../CLAUDE.md) and
    persist it:
 
    ```sh
-   lore compact set <owner/repo>#<n> --from-file <file>
+   issuary compact set <owner/repo>#<n> --from-file <file>
    ```
 
    Persisting a compact clears the stale flag.

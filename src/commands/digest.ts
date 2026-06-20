@@ -156,7 +156,7 @@ function groupEvents(events: EventWithContext[]): DigestRepoGroup[] {
 }
 
 /**
- * Core action for `lore digest`: the aggregated inbox across all watched repos.
+ * Core action for `issuary digest`: the aggregated inbox across all watched repos.
  *
  * - Default (inbox): surfaces unseen events, then marks them seen so each change
  *   appears once.
@@ -175,7 +175,9 @@ export function runDigest(store: Store, options: DigestOptions = {}): DigestResu
   if (options.repo) {
     const repo = store.getRepoByFullName(options.repo);
     if (!repo) {
-      throw new DigestError(`Repo "${options.repo}" is not watched. Add it with \`lore add ${options.repo}\` first.`);
+      throw new DigestError(
+        `Repo "${options.repo}" is not watched. Add it with \`issuary add ${options.repo}\` first.`,
+      );
     }
     repoId = repo.id;
   }

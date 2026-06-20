@@ -14,7 +14,7 @@ import type {
 
 const API_VERSION = "2022-11-28";
 const ACCEPT = "application/vnd.github+json";
-const USER_AGENT = "merencia-lore";
+const USER_AGENT = "merencia-issuary";
 const PER_PAGE = 100;
 
 /** Default number of automatic retries for rate-limit and network failures. */

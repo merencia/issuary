@@ -1,11 +1,11 @@
 {
-  "name": "lore-auto-compact",
+  "name": "issuary-auto-compact",
   "version": "0.0.0",
   "private": true,
-  "description": "Example auto-compaction worker for lore. NOT part of the @merencia/lore package.",
+  "description": "Example auto-compaction worker for issuary. NOT part of the issuary package.",
   "type": "module",
   "bin": {
-    "lore-auto-compact": "./auto-compact.mjs"
+    "issuary-auto-compact": "./auto-compact.mjs"
   },
   "scripts": {
     "start": "node auto-compact.mjs"

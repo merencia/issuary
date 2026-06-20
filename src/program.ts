@@ -6,20 +6,20 @@ const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { version: string; description: string };
 
 /**
- * Builds the root `lore` command with all subcommands registered.
+ * Builds the root `issuary` command with all subcommands registered.
  * Kept separate from {@link file://./cli.ts} so it can be exercised in tests
  * without spawning a process.
  */
 export function createProgram(): Command {
   const program = new Command();
 
-  program.name("lore").description(pkg.description).version(pkg.version);
+  program.name("issuary").description(pkg.description).version(pkg.version);
 
   registerCommands(program);
 
   program.addHelpText(
     "after",
-    "\nAI consumers: run `lore protocol` for the compaction contract (how to use, when to\nrecompact, and how to persist a compact). Add `--json` for the machine-readable form.\nAI agents: run `lore skill --install` to install lore as a discoverable agent skill.",
+    "\nAI consumers: run `issuary protocol` for the compaction contract (how to use, when to\nrecompact, and how to persist a compact). Add `--json` for the machine-readable form.\nAI agents: run `issuary skill --install` to install issuary as a discoverable agent skill.",
   );
 
   return program;

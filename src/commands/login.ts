@@ -33,7 +33,7 @@ interface AuthenticatedUser {
  * are injected so the action is testable without touching GitHub or disk.
  */
 export interface LoginDeps {
-  /** Lore home directory where the token is persisted. */
+  /** Issuary home directory where the token is persisted. */
   home: string;
   /** GitHub REST API base URL for the `/user` confirmation call. */
   apiUrl: string;
@@ -64,7 +64,7 @@ async function defaultGetAuthenticatedUser(apiUrl: string, token: string): Promi
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "merencia-lore",
+        "User-Agent": "merencia-issuary",
       },
     });
   } catch (error) {
@@ -86,7 +86,7 @@ async function defaultGetAuthenticatedUser(apiUrl: string, token: string): Promi
 }
 
 /**
- * Core action for `lore login`: runs the GitHub device flow, prints the user
+ * Core action for `issuary login`: runs the GitHub device flow, prints the user
  * code and verification URL, polls until the user authorizes, stores the token,
  * and confirms it by fetching the authenticated user. Never prints the token.
  *
@@ -109,7 +109,7 @@ export async function runLogin(deps: LoginDeps): Promise<LoginResult> {
     oauthHost: deps.oauthHost,
   });
 
-  log(`To authorize lore, open ${device.verification_uri} and enter the code: ${device.user_code}`);
+  log(`To authorize issuary, open ${device.verification_uri} and enter the code: ${device.user_code}`);
   log("Waiting for you to authorize in the browser...");
 
   const token = await doPoll({
@@ -135,7 +135,7 @@ interface LoginCommandOptions {
 /**
  * Builds the `login` command.
  *
- * `lore login` authenticates via the GitHub OAuth device flow and stores the
+ * `issuary login` authenticates via the GitHub OAuth device flow and stores the
  * resulting token in the credentials file. The action is kept thin: it resolves
  * config and the client id, then delegates to {@link runLogin}.
  */

@@ -131,14 +131,14 @@ function summarize(issues: Issue[]): RepoDigestSummary {
 function loadDigest(store: Store, fullName: string): { repo: string; ordered: Issue[]; summary: RepoDigestSummary } {
   const repo = store.getRepoByFullName(fullName);
   if (!repo) {
-    throw new RepoDigestError(`Repo "${fullName}" is not watched. Add it with \`lore add ${fullName}\` first.`);
+    throw new RepoDigestError(`Repo "${fullName}" is not watched. Add it with \`issuary add ${fullName}\` first.`);
   }
   const issues = store.listIssues(repo.id);
   return { repo: repo.fullName, ordered: orderIssues(issues), summary: summarize(issues) };
 }
 
 /**
- * Core action for `lore repo-digest`: builds the full project-wide view of one
+ * Core action for `issuary repo-digest`: builds the full project-wide view of one
  * watched repo. For each issue it prefers a fresh compact and falls back to the
  * raw body, flagging which issues an AI may want to (re)compact.
  *
@@ -166,7 +166,7 @@ export function runRepoDigest(store: Store, fullName: string): RepoDigestResult 
 }
 
 /**
- * Core action for `lore repo-digest --headlines`: lists the whole project using
+ * Core action for `issuary repo-digest --headlines`: lists the whole project using
  * only the cheap `tldr` headline (roughly 20 tokens per issue), falling back to
  * the title for issues without a tldr.
  *

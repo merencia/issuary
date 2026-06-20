@@ -19,7 +19,7 @@ describe("COMPACTION_PROTOCOL", () => {
   });
 
   it("names the persistence command that clears the stale flag", () => {
-    expect(COMPACTION_PROTOCOL).toContain("lore compact set <owner/repo>#<n> --from-file <file>");
+    expect(COMPACTION_PROTOCOL).toContain("issuary compact set <owner/repo>#<n> --from-file <file>");
     expect(COMPACTION_PROTOCOL).toMatch(/clears the stale flag/);
   });
 
@@ -53,6 +53,6 @@ describe("COMPACT_FORMAT_SPEC", () => {
   });
 
   it("carries the persistence command", () => {
-    expect(COMPACT_FORMAT_SPEC.persistCommand).toBe("lore compact set <owner/repo>#<n> --from-file <file>");
+    expect(COMPACT_FORMAT_SPEC.persistCommand).toBe("issuary compact set <owner/repo>#<n> --from-file <file>");
   });
 });

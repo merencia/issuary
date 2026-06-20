@@ -17,7 +17,7 @@ describe("runLogin", () => {
     const log = vi.fn();
 
     const result = await runLogin({
-      home: "/tmp/lore-home",
+      home: "/tmp/issuary-home",
       apiUrl: "https://api.github.com",
       clientId: "cid",
       scope: "repo",
@@ -29,7 +29,7 @@ describe("runLogin", () => {
     });
 
     expect(result).toEqual({ ok: true, login: "octocat", scopes: ["repo"] });
-    expect(writeStoredToken).toHaveBeenCalledWith("/tmp/lore-home", "ghp_token");
+    expect(writeStoredToken).toHaveBeenCalledWith("/tmp/issuary-home", "ghp_token");
     expect(getAuthenticatedUser).toHaveBeenCalledWith("https://api.github.com", "ghp_token");
 
     // The user code and verification URI are shown; the token never is.

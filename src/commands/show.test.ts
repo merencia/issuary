@@ -26,7 +26,7 @@ describe("runShow", () => {
   let store: Store;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "lore-show-"));
+    dir = mkdtempSync(join(tmpdir(), "issuary-show-"));
     store = openStore(join(dir, "db.sqlite"));
   });
 
@@ -87,7 +87,7 @@ describe("runShow", () => {
 
     it("errors when the issue is not in the local store", async () => {
       store.insertRepo({ owner: "octo", name: "demo", fullName: "octo/demo" });
-      await expect(runShow(store, "octo/demo#7", {})).rejects.toThrow(/Run `lore sync` first/);
+      await expect(runShow(store, "octo/demo#7", {})).rejects.toThrow(/Run `issuary sync` first/);
     });
   });
 

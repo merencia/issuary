@@ -1,10 +1,10 @@
-# Scheduling `lore sync`
+# Scheduling `issuary sync`
 
-`lore` is not a daemon. To keep your local mirror fresh, let the operating
-system scheduler (cron on Linux, launchd on macOS) run `lore sync` on an
+`issuary` is not a daemon. To keep your local mirror fresh, let the operating
+system scheduler (cron on Linux, launchd on macOS) run `issuary sync` on an
 interval. This page has concrete recipes.
 
-The key flag is `--quiet`: in quiet mode `lore sync` prints nothing when there
+The key flag is `--quiet`: in quiet mode `issuary sync` prints nothing when there
 was no activity across all watched repos (no new issues, closures, reopens, or
 comments, and no errors), so a scheduled run does not generate noise or mail on
 every cycle. It still prints a concise summary when something changed, and it
@@ -17,9 +17,9 @@ problems.
 - **`GITHUB_TOKEN`** in the environment. A scheduler runs with a minimal
   environment, so set the token explicitly in the job (do not rely on your
   interactive shell profile).
-- **`LORE_HOME`** (optional) points at the directory holding local state. The
-  SQLite database lives at `$LORE_HOME/db.sqlite`, defaulting to
-  `~/.lore/db.sqlite`. Set `LORE_HOME` explicitly in the job if you do not want
+- **`ISSUARY_HOME`** (optional) points at the directory holding local state. The
+  SQLite database lives at `$ISSUARY_HOME/db.sqlite`, defaulting to
+  `~/.issuary/db.sqlite`. Set `ISSUARY_HOME` explicitly in the job if you do not want
   to depend on `HOME` being resolved the same way it is in your shell.
 
 ## crontab (Linux, and macOS if you prefer cron)
@@ -28,18 +28,18 @@ Run every 15 minutes, quiet so a no-op cycle is silent:
 
 ```cron
 # m  h  dom mon dow  command
-*/15 *  *   *   *    GITHUB_TOKEN=ghp_xxx LORE_HOME=/home/you/.lore /usr/local/bin/lore sync --quiet
+*/15 *  *   *   *    GITHUB_TOKEN=ghp_xxx ISSUARY_HOME=/home/you/.issuary /usr/local/bin/issuary sync --quiet
 ```
 
 Notes:
 
-- Use the absolute path to the `lore` binary (`which lore`); cron's `PATH` is
+- Use the absolute path to the `issuary` binary (`which issuary`); cron's `PATH` is
   minimal.
 - With `--quiet`, cron only mails you when there is activity or a failure. If
   you would rather capture everything to a log, redirect instead:
 
   ```cron
-  */15 * * * * GITHUB_TOKEN=ghp_xxx /usr/local/bin/lore sync --quiet >> /home/you/.lore/sync.log 2>&1
+  */15 * * * * GITHUB_TOKEN=ghp_xxx /usr/local/bin/issuary sync --quiet >> /home/you/.issuary/sync.log 2>&1
   ```
 
 - To be alerted on failures, let the non-zero exit surface. For example, wrap
@@ -49,7 +49,7 @@ Notes:
 
 ## launchd (macOS)
 
-Create `~/Library/LaunchAgents/com.merencia.lore-sync.plist`:
+Create `~/Library/LaunchAgents/com.merencia.issuary-sync.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -57,11 +57,11 @@ Create `~/Library/LaunchAgents/com.merencia.lore-sync.plist`:
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.merencia.lore-sync</string>
+    <string>com.merencia.issuary-sync</string>
 
     <key>ProgramArguments</key>
     <array>
-      <string>/usr/local/bin/lore</string>
+      <string>/usr/local/bin/issuary</string>
       <string>sync</string>
       <string>--quiet</string>
     </array>
@@ -70,8 +70,8 @@ Create `~/Library/LaunchAgents/com.merencia.lore-sync.plist`:
     <dict>
       <key>GITHUB_TOKEN</key>
       <string>ghp_xxx</string>
-      <key>LORE_HOME</key>
-      <string>/Users/you/.lore</string>
+      <key>ISSUARY_HOME</key>
+      <string>/Users/you/.issuary</string>
     </dict>
 
     <!-- Run every 15 minutes (900 seconds). -->
@@ -79,9 +79,9 @@ Create `~/Library/LaunchAgents/com.merencia.lore-sync.plist`:
     <integer>900</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/you/.lore/sync.log</string>
+    <string>/Users/you/.issuary/sync.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/you/.lore/sync.err.log</string>
+    <string>/Users/you/.issuary/sync.err.log</string>
   </dict>
 </plist>
 ```
@@ -89,12 +89,12 @@ Create `~/Library/LaunchAgents/com.merencia.lore-sync.plist`:
 Load it (and reload after edits):
 
 ```sh
-launchctl unload ~/Library/LaunchAgents/com.merencia.lore-sync.plist 2>/dev/null
-launchctl load ~/Library/LaunchAgents/com.merencia.lore-sync.plist
+launchctl unload ~/Library/LaunchAgents/com.merencia.issuary-sync.plist 2>/dev/null
+launchctl load ~/Library/LaunchAgents/com.merencia.issuary-sync.plist
 ```
 
-Use the absolute path to the `lore` binary in `ProgramArguments` (run
-`which lore` to find it). With `--quiet`, `sync.log` only grows when there is
+Use the absolute path to the `issuary` binary in `ProgramArguments` (run
+`which issuary` to find it). With `--quiet`, `sync.log` only grows when there is
 activity.
 
 ## Rate limits and cost

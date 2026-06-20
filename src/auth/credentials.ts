@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** Name of the credentials file inside the lore home directory. */
+/** Name of the credentials file inside the issuary home directory. */
 const CREDENTIALS_FILE = "credentials.json";
 
 /** JSON shape persisted in the credentials file. Kept intentionally small. */
@@ -9,7 +9,7 @@ interface CredentialsFile {
   github_token?: string;
 }
 
-/** Absolute path to the credentials file inside the given lore home. */
+/** Absolute path to the credentials file inside the given issuary home. */
 function credentialsPath(home: string): string {
   return join(home, CREDENTIALS_FILE);
 }
@@ -17,7 +17,7 @@ function credentialsPath(home: string): string {
 /**
  * Reads the stored GitHub token from `{home}/credentials.json`.
  *
- * @param home - The lore home directory.
+ * @param home - The issuary home directory.
  * @returns The trimmed token, or `null` when absent or unreadable.
  */
 export function readStoredToken(home: string): string | null {
@@ -40,7 +40,7 @@ export function readStoredToken(home: string): string | null {
  *
  * Creates the home directory if needed. The token is never logged.
  *
- * @param home - The lore home directory.
+ * @param home - The issuary home directory.
  * @param token - The GitHub access token to store.
  */
 export function writeStoredToken(home: string, token: string): void {
@@ -55,7 +55,7 @@ export function writeStoredToken(home: string, token: string): void {
 /**
  * Removes the stored credentials file.
  *
- * @param home - The lore home directory.
+ * @param home - The issuary home directory.
  * @returns `true` when a file was removed, `false` when none existed.
  */
 export function clearStoredToken(home: string): boolean {

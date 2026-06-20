@@ -1,23 +1,23 @@
-# lore
+# issuary
 
 CLI to monitor and AI-compact GitHub issues across multiple repositories.
 
-`lore` keeps a local, incremental mirror of the issues in the repos you watch,
+`issuary` keeps a local, incremental mirror of the issues in the repos you watch,
 tells you what changed since the last sync (new issues, closed issues, new
 comments), and offers a compaction layer: structured summaries written and
 consumed by AIs so an agent can understand a whole project's issues without
 re-fetching from GitHub or blowing its context window.
 
-The name is the *lore*: the accumulated, distilled knowledge of a project's
-issues.
+The name is "issuary" (issue + -ary): an archive of a project's issues, distilled
+into something an agent can read at a glance.
 
 ## Core idea
 
-- **Local incremental mirror.** `lore` mirrors issues from many repos into a
+- **Local incremental mirror.** `issuary` mirrors issues from many repos into a
   local SQLite database and only fetches what changed since the last sync.
 - **Change detection.** Each sync records events (opened, closed, reopened, new
   comments) so you can see what moved across every watched repo at a glance.
-- **AI compaction layer.** `lore` never calls an LLM. It stores raw issue
+- **AI compaction layer.** `issuary` never calls an LLM. It stores raw issue
   content, exposes which issues need a summary, and accepts the summary back. The
   agent that consumes the tool is the one that writes the summaries. A compact
   saves context tokens for that agent, not disk space: the raw is never deleted.
@@ -28,7 +28,7 @@ optional layer on top.
 ## Install
 
 ```sh
-npm install -g @merencia/lore
+npm install -g issuary
 ```
 
 Requirements:
@@ -36,7 +36,7 @@ Requirements:
 - **Node.js >= 20.**
 - **A GitHub token.** Either export `GITHUB_TOKEN` (a personal access token with
   read access to the repos you watch, the `repo` scope or `public_repo` for
-  public repos only) or run `lore login` to authenticate via the browser. See
+  public repos only) or run `issuary login` to authenticate via the browser. See
   [Authentication](#authentication). Commands that hit the GitHub API (`add`,
   `sync`, and `show --raw`) require a token; purely local commands do not.
 
@@ -44,13 +44,13 @@ Requirements:
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `GITHUB_TOKEN` | GitHub personal access token used to reach the API. Takes precedence over a token stored by `lore login`. | (required for API commands unless `lore login` was run) |
+| `GITHUB_TOKEN` | GitHub personal access token used to reach the API. Takes precedence over a token stored by `issuary login`. | (required for API commands unless `issuary login` was run) |
 | `GITHUB_API_URL` | REST API base URL. Set this for GitHub Enterprise, e.g. `https://github.example.com/api/v3`. Trailing slashes are trimmed. | `https://api.github.com` |
-| `LORE_HOME` | Directory holding local state (the SQLite database and `lore login` credentials). | `~/.lore` |
-| `LORE_GITHUB_CLIENT_ID` | OAuth App client id used by `lore login` (device flow). Overrides the baked-in default. | (build default) |
-| `LORE_GITHUB_SCOPE` | OAuth scope requested by `lore login`. | `repo` |
+| `ISSUARY_HOME` | Directory holding local state (the SQLite database and `issuary login` credentials). | `~/.issuary` |
+| `ISSUARY_GITHUB_CLIENT_ID` | OAuth App client id used by `issuary login` (device flow). Overrides the baked-in default. | (build default) |
+| `ISSUARY_GITHUB_SCOPE` | OAuth scope requested by `issuary login`. | `repo` |
 
-The database lives at `$LORE_HOME/db.sqlite` (so `~/.lore/db.sqlite` by default).
+The database lives at `$ISSUARY_HOME/db.sqlite` (so `~/.issuary/db.sqlite` by default).
 
 ## Authentication
 
@@ -65,68 +65,68 @@ There are two ways to provide one:
    export GITHUB_TOKEN=ghp_...
    ```
 
-2. **`lore login` (device flow).** Authenticate in the browser, no manual token
+2. **`issuary login` (device flow).** Authenticate in the browser, no manual token
    handling:
 
    ```sh
-   lore login
+   issuary login
    ```
 
    It prints a short code and a URL. Open the URL, enter the code, and approve.
-   `lore` then stores the resulting token and confirms with `Logged in as <you>.`
+   `issuary` then stores the resulting token and confirms with `Logged in as <you>.`
    The default scope requested is `repo` so private repos work; override it with
-   `LORE_GITHUB_SCOPE` if you only need public access. `lore login --json` emits
+   `ISSUARY_GITHUB_SCOPE` if you only need public access. `issuary login --json` emits
    `{ "ok": true, "login": "<you>", "scopes": [...] }`. The token itself is never
    printed.
 
 **Precedence.** When both are present, the `GITHUB_TOKEN` environment variable
 wins over the stored token. So an explicitly exported token always takes effect,
-and `lore login` is the fallback when no env token is set.
+and `issuary login` is the fallback when no env token is set.
 
-**Where the token is stored.** `lore login` writes the token to
-`~/.lore/credentials.json` (under `$LORE_HOME`), created with file mode `0600`
+**Where the token is stored.** `issuary login` writes the token to
+`~/.issuary/credentials.json` (under `$ISSUARY_HOME`), created with file mode `0600`
 (owner read/write only). The token is never logged.
 
-**Log out.** `lore logout` removes the stored token locally:
+**Log out.** `issuary logout` removes the stored token locally:
 
 ```sh
-lore logout
+issuary logout
 ```
 
 This only deletes the local credentials file; it does not revoke the token on
-GitHub. `lore logout --json` emits `{ "ok": true, "removed": boolean }`.
+GitHub. `issuary logout --json` emits `{ "ok": true, "removed": boolean }`.
 
 ### Maintainer setup (device login)
 
-`lore login` uses the GitHub OAuth **device flow**, which requires a registered
+`issuary login` uses the GitHub OAuth **device flow**, which requires a registered
 GitHub OAuth App with "Device Flow" enabled. The app's **public** client id must
 be available to the CLI: either baked into `DEFAULT_GITHUB_CLIENT_ID` in
 `src/auth/client-id.ts` (a device-flow client id is not a secret, so it is safe
-to commit) or supplied at runtime via the `LORE_GITHUB_CLIENT_ID` environment
-variable. Until a client id is configured, `lore login` exits with a clear error;
+to commit) or supplied at runtime via the `ISSUARY_GITHUB_CLIENT_ID` environment
+variable. Until a client id is configured, `issuary login` exits with a clear error;
 the `GITHUB_TOKEN` path keeps working regardless.
 
 ## Quickstart
 
 ```sh
 # 1. Watch a couple of repos (each is validated against the API).
-lore add octocat/hello-world
-lore add facebook/react
+issuary add octocat/hello-world
+issuary add facebook/react
 
 # 2. Mirror their issues locally (incremental: only what changed is fetched).
-lore sync
+issuary sync
 
 # 3. See what changed everywhere, as an aggregated inbox.
-lore digest
+issuary digest
 
 # 4. Get the full project-wide view of one repo's issues.
-lore repo-digest facebook/react
+issuary repo-digest facebook/react
 
 # 5. Read a single issue (compact if present, otherwise raw body).
-lore show facebook/react#123
+issuary show facebook/react#123
 
 # Read the same issue's full raw body and comments.
-lore show facebook/react#123 --raw
+issuary show facebook/react#123 --raw
 ```
 
 Every command also supports `--json` for machine and AI consumption.
@@ -138,7 +138,7 @@ suppresses the human formatting. Expected, user-facing errors (a malformed
 argument, an unwatched repo, a missing issue) print a message to stderr and exit
 with a non-zero status.
 
-### `lore add <owner/repo>`
+### `issuary add <owner/repo>`
 
 Start watching a repo. Validates that the repo exists and is accessible via the
 GitHub API before recording it. Re-adding a previously removed repo reactivates
@@ -147,7 +147,7 @@ it. Requires `GITHUB_TOKEN`.
 - Argument: `<owner/repo>`, e.g. `octocat/hello-world`.
 - `--json` emits `{ "ok": true, "repo": "<owner/repo>", "status": "added" | "already-watched" | "reactivated" }`.
 
-### `lore remove <owner/repo>`
+### `issuary remove <owner/repo>`
 
 Stop watching a repo. This deactivates it; it never deletes, so the repo's
 issues and compacts are kept. Local only, no token required.
@@ -155,14 +155,14 @@ issues and compacts are kept. Local only, no token required.
 - Argument: `<owner/repo>`.
 - `--json` emits `{ "ok": true, "repo": "<owner/repo>", "status": "removed" | "already-inactive" }`.
 
-### `lore list`
+### `issuary list`
 
 List watched repos with their state and last sync time. Active repos first, then
 inactive. Local only.
 
 - `--json` emits an array of `{ "repo": "<owner/repo>", "active": boolean, "lastSyncedAt": string | null }`.
 
-### `lore sync [repo]`
+### `issuary sync [repo]`
 
 Fetch issue updates for watched repos and record what changed. With no argument
 it syncs every active repo; with a `[repo]` argument it limits the sync to that
@@ -181,7 +181,7 @@ Requires `GITHUB_TOKEN`.
 The command exits `0` on success (even when nothing changed) and non-zero when
 any repo failed to sync, so a scheduler or monitor can detect failures.
 
-### `lore digest`
+### `issuary digest`
 
 Show an aggregated inbox of issue changes across all watched repos, grouped by
 repo and then by change type (new issues, closed, new comments, closed with new
@@ -205,7 +205,7 @@ Options:
 
 Local only, no token required.
 
-### `lore repo-digest <repo>`
+### `issuary repo-digest <repo>`
 
 Consume all issues of one watched repo as a project-wide, AI-optimized view. For
 each issue it prefers a fresh compact and falls back to the raw body, flagging
@@ -218,7 +218,7 @@ closed, compacted, stale or uncompacted). Local only.
 - `--json` (full) emits `{ "repo", "summary": { "total", "open", "closed", "compacted", "staleOrUncompacted" }, "issues": [ { "number", "state", "stateReason", "title", "representation", "compacted", "stale", "refs" } ] }`.
 - `--headlines --json` emits `{ "repo", "summary": {...}, "headlines": [ { "number", "state", "headline", "fromTldr" } ] }`.
 
-### `lore show <target>`
+### `issuary show <target>`
 
 Display a single issue from the local store. By default it shows the compact if a
 fresh one exists, otherwise the raw body. Local only by default.
@@ -228,7 +228,7 @@ fresh one exists, otherwise the raw body. Local only by default.
   on demand the first time and then cached, so `--raw` requires `GITHUB_TOKEN`.
 - `--json` emits the issue's fields: `{ "repo", "number", "title", "state", "stateReason", "author", "labels", "commentCount", "createdAt", "updatedAt", "closedAt", "compact", "compactStale", "rawBody", "refs" }`, plus `"comments"` when `--raw` is set.
 
-### `lore compact list`
+### `issuary compact list`
 
 List issues with their compaction status (`compacted`, `stale`, or
 `uncompacted`), grouped by repo. Local only.
@@ -239,10 +239,10 @@ List issues with their compaction status (`compacted`, `stale`, or
 - `--json` emits an array of `{ "repo", "number", "title", "state", "status", "reason", "rawBody", "commentsNeedFetch" }`.
   `reason` is `"uncompacted"` or `"stale"` for pending issues and `null` for
   fresh ones. `commentsNeedFetch` is `true` when the issue has comments that have
-  not been pulled yet, a hint to run `lore show <repo>#<n> --raw` before
+  not been pulled yet, a hint to run `issuary show <repo>#<n> --raw` before
   compacting.
 
-### `lore compact set <target> --from-file <file>`
+### `issuary compact set <target> --from-file <file>`
 
 Persist a compact for an issue from a file in the canonical format. The file is
 parsed and validated; an invalid compact is rejected. Saving a compact clears the
@@ -252,40 +252,40 @@ issue's stale flag. Local only.
 - `--from-file <file>` (required): path to the compact file to read.
 - `--json` emits `{ "ok": true, "repo", "number", "tldr" }`.
 
-### `lore protocol`
+### `issuary protocol`
 
 Print the AI compaction protocol, the contract AI consumers follow. This is the
 self-describing usage that an agent can read to discover how compaction works.
 
 - `--json` emits `{ "protocol": string, "compactFormat": { "doc", "frontmatterFields", "bodyFields", "persistCommand" } }`.
 
-### `lore skill`
+### `issuary skill`
 
-Emit lore's neutral agent skill, or install it for an AI agent. The content is
-vendor-neutral: it teaches an agent what lore is, when to reach for it, and where
-to find the exact contract (`lore protocol`, `lore --help`).
+Emit issuary's neutral agent skill, or install it for an AI agent. The content is
+vendor-neutral: it teaches an agent what issuary is, when to reach for it, and where
+to find the exact contract (`issuary protocol`, `issuary --help`).
 
 - No flags: print the skill to stdout. This is the universal path: paste it into
   any agent's system prompt or rules file.
 - `--install --format claude` (the default format): write
-  `~/.claude/skills/lore/SKILL.md` (override the skills root with `--dir` or
+  `~/.claude/skills/issuary/SKILL.md` (override the skills root with `--dir` or
   `CLAUDE_SKILLS_DIR`).
-- `--install --format agents`: insert or replace a delimited, idempotent lore
+- `--install --format agents`: insert or replace a delimited, idempotent issuary
   section in an `AGENTS.md` at the project root (override the directory with
   `--dir`). Running it twice yields exactly one section; existing unrelated
   content is preserved.
 - `--json` emits `{ "name", "description", "path", "content", "format" }`.
 
-### `lore login`
+### `issuary login`
 
 Authenticate with GitHub via the OAuth device flow and store the token at
-`~/.lore/credentials.json` (mode `0600`). Prints a user code and a verification
+`~/.issuary/credentials.json` (mode `0600`). Prints a user code and a verification
 URL to open in the browser, polls until you authorize, then confirms with
 `Logged in as <you>.` See [Authentication](#authentication).
 
 - `--json` emits `{ "ok": true, "login": "<you>", "scopes": [...] }`.
 
-### `lore logout`
+### `issuary logout`
 
 Remove the locally stored token. Local only; it does not revoke the token on
 GitHub.
@@ -294,27 +294,27 @@ GitHub.
 
 ## For AI agents
 
-`lore` does not call any LLM itself. It stores raw issue content, exposes which
+`issuary` does not call any LLM itself. It stores raw issue content, exposes which
 issues need a summary, and accepts the summary back. The agent that consumes the
-tool is the compaction CPU; `lore` only stores and serves.
+tool is the compaction CPU; `issuary` only stores and serves.
 
-### lore vs GitHub's MCP
+### issuary vs GitHub's MCP
 
 They are complementary, not competing. GitHub's MCP server gives live, raw access
 to issues, use it when you need the current, unfiltered state of an issue or its
-comment thread. `lore` is not another raw-issue reader: its value is the
+comment thread. `issuary` is not another raw-issue reader: its value is the
 persistent, compacted memory of issues plus the cross-repo digest of what changed
-since you last looked. Use GitHub's MCP for live, raw access, and `lore` for the
+since you last looked. Use GitHub's MCP for live, raw access, and `issuary` for the
 distilled memory and the "what changed" digest.
 
-### Teaching an agent to use lore
+### Teaching an agent to use issuary
 
-`lore skill` emits a neutral skill document that explains all of this. Print it
-(`lore skill`) and paste it into any agent's system prompt or rules file, or
-install it: `lore skill --install --format claude` writes
-`~/.claude/skills/lore/SKILL.md` for Claude Code, and
-`lore skill --install --format agents` inserts an idempotent lore section into a
-project `AGENTS.md`. See the [`lore skill`](#lore-skill) command reference.
+`issuary skill` emits a neutral skill document that explains all of this. Print it
+(`issuary skill`) and paste it into any agent's system prompt or rules file, or
+install it: `issuary skill --install --format claude` writes
+`~/.claude/skills/issuary/SKILL.md` for Claude Code, and
+`issuary skill --install --format agents` inserts an idempotent issuary section into a
+project `AGENTS.md`. See the [`issuary skill`](#issuary-skill) command reference.
 
 Each issue carries two fields that drive the workflow:
 
@@ -333,20 +333,20 @@ A typical agent loop:
 
 ```sh
 # 1. Find the work: issues that are uncompacted or stale.
-lore compact list --pending --json
+issuary compact list --pending --json
 
 # 2. Read the raw body and comments for one of them
 #    (comments are fetched on demand).
-lore show owner/repo#123 --raw --json
+issuary show owner/repo#123 --raw --json
 
 # 3. Write a compact in the canonical format to a file, then persist it.
 #    Persisting clears the stale flag.
-lore compact set owner/repo#123 --from-file compact.md
+issuary compact set owner/repo#123 --from-file compact.md
 
 # 4. Re-compact whenever an issue goes stale again after a future sync.
 ```
 
-Run `lore protocol` to get the contract as text (or `lore protocol --json` for
+Run `issuary protocol` to get the contract as text (or `issuary protocol --json` for
 the structured form). The full, authoritative, field-by-field compact format,
 with rules and worked examples, is in
 [docs/compact-format.md](./docs/compact-format.md).
@@ -354,14 +354,14 @@ with rules and worked examples, is in
 To automate this loop, see the optional auto-compaction worker in
 [examples/auto-compact/](./examples/auto-compact/): a small companion script that
 batches the pending set (`compact list --pending --limit`), calls an LLM, and
-writes the compacts back. It lives outside the CLI on purpose: `lore` itself
+writes the compacts back. It lives outside the CLI on purpose: `issuary` itself
 never calls an LLM, so the worker keeps that dependency in the example, not the
 core.
 
 ## How it works
 
 - **Local SQLite mirror.** State lives in a single SQLite database at
-  `~/.lore/db.sqlite` (override the directory with `LORE_HOME`).
+  `~/.issuary/db.sqlite` (override the directory with `ISSUARY_HOME`).
 - **Incremental sync.** `sync` fetches issues with the GitHub `since` parameter
   and an `ETag`. When nothing changed the API returns `304 Not Modified`, which
   does not spend your rate limit and is reported as `unchanged`.
@@ -376,8 +376,8 @@ core.
 
 ## Scheduling
 
-`lore` is not a daemon. To keep the mirror fresh, let your OS scheduler run
-`lore sync --quiet` on an interval. Quiet mode stays silent on a no-op cycle (no
+`issuary` is not a daemon. To keep the mirror fresh, let your OS scheduler run
+`issuary sync --quiet` on an interval. Quiet mode stays silent on a no-op cycle (no
 events, no errors), prints a summary when something changed, always prints
 failed repos, and exits non-zero when any repo failed so a monitor can react.
 

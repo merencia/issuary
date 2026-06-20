@@ -11,14 +11,14 @@ export interface LogoutResult {
 
 /** Dependencies for {@link runLogout}; injected so the action is testable. */
 export interface LogoutDeps {
-  /** Lore home directory holding the credentials file. */
+  /** Issuary home directory holding the credentials file. */
   home: string;
   /** Clears the stored token. Defaults to {@link clearStoredToken}. */
   clearStoredToken?: (home: string) => boolean;
 }
 
 /**
- * Core action for `lore logout`: clears the stored token. Local only; it does
+ * Core action for `issuary logout`: clears the stored token. Local only; it does
  * not contact GitHub or revoke the token server-side.
  *
  * @param deps - Injected dependencies; see {@link LogoutDeps}.
@@ -39,11 +39,11 @@ interface LogoutCommandOptions {
 /**
  * Builds the `logout` command.
  *
- * `lore logout` removes the locally stored token. It never hits the network.
+ * `issuary logout` removes the locally stored token. It never hits the network.
  */
 export function logoutCommand(): Command {
   return new Command("logout")
-    .description("Remove the stored GitHub token saved by `lore login`")
+    .description("Remove the stored GitHub token saved by `issuary login`")
     .option("--json", "emit machine-readable JSON")
     .action((options: LogoutCommandOptions) => {
       const config = loadConfig({ requireToken: false });

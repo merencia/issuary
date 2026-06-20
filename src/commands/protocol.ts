@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { COMPACT_FORMAT_SPEC, COMPACTION_PROTOCOL, type CompactFormatSpec } from "../protocol/index.js";
 
-/** The shape of the `lore protocol --json` output. */
+/** The shape of the `issuary protocol --json` output. */
 export interface ProtocolJson {
   /** The full compaction protocol text. */
   protocol: string;
@@ -10,7 +10,7 @@ export interface ProtocolJson {
 }
 
 /**
- * Core action for `lore protocol`: returns the canonical compaction protocol.
+ * Core action for `issuary protocol`: returns the canonical compaction protocol.
  *
  * Separated from the Commander wiring so it can be tested without spawning a
  * process. Returns the human text, or the structured JSON payload when

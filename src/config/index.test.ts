@@ -7,7 +7,7 @@ describe("config barrel", () => {
   beforeEach(() => {
     vi.stubEnv("GITHUB_TOKEN", "ghp_secret");
     vi.stubEnv("GITHUB_API_URL", undefined);
-    vi.stubEnv("LORE_HOME", undefined);
+    vi.stubEnv("ISSUARY_HOME", undefined);
   });
 
   afterEach(() => {
@@ -17,7 +17,7 @@ describe("config barrel", () => {
   it("re-exports loadConfig", () => {
     const config = loadConfig();
     expect(config.apiUrl).toBe("https://api.github.com");
-    expect(config.home).toBe(join(homedir(), ".lore"));
+    expect(config.home).toBe(join(homedir(), ".issuary"));
   });
 
   it("re-exports ConfigError", () => {

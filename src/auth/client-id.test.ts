@@ -3,12 +3,12 @@ import { DEFAULT_SCOPE, resolveClientId, resolveScope } from "./client-id.js";
 import { AuthError } from "./errors.js";
 
 describe("resolveClientId", () => {
-  it("uses LORE_GITHUB_CLIENT_ID when set", () => {
-    expect(resolveClientId({ LORE_GITHUB_CLIENT_ID: "cid123" })).toBe("cid123");
+  it("uses ISSUARY_GITHUB_CLIENT_ID when set", () => {
+    expect(resolveClientId({ ISSUARY_GITHUB_CLIENT_ID: "cid123" })).toBe("cid123");
   });
 
   it("trims surrounding whitespace", () => {
-    expect(resolveClientId({ LORE_GITHUB_CLIENT_ID: "  cid123  " })).toBe("cid123");
+    expect(resolveClientId({ ISSUARY_GITHUB_CLIENT_ID: "  cid123  " })).toBe("cid123");
   });
 
   it("throws AuthError when no client id is configured", () => {
@@ -16,14 +16,14 @@ describe("resolveClientId", () => {
     expect(() => resolveClientId({})).toThrow(AuthError);
   });
 
-  it("mentions LORE_GITHUB_CLIENT_ID in the error", () => {
+  it("mentions ISSUARY_GITHUB_CLIENT_ID in the error", () => {
     let message = "";
     try {
       resolveClientId({});
     } catch (err) {
       message = (err as Error).message;
     }
-    expect(message).toContain("LORE_GITHUB_CLIENT_ID");
+    expect(message).toContain("ISSUARY_GITHUB_CLIENT_ID");
   });
 });
 
@@ -33,7 +33,7 @@ describe("resolveScope", () => {
     expect(resolveScope({})).toBe("repo");
   });
 
-  it("honors LORE_GITHUB_SCOPE override", () => {
-    expect(resolveScope({ LORE_GITHUB_SCOPE: "public_repo" })).toBe("public_repo");
+  it("honors ISSUARY_GITHUB_SCOPE override", () => {
+    expect(resolveScope({ ISSUARY_GITHUB_SCOPE: "public_repo" })).toBe("public_repo");
   });
 });

@@ -188,7 +188,7 @@ export interface Store {
   /**
    * Caches on-demand fetched raw comments for an issue keyed by
    * `(repoId, number)`: sets `raw_comments` to the JSON-encoded comments and
-   * stamps `raw_fetched_at`. Used by `lore show --raw` so comments are fetched
+   * stamps `raw_fetched_at`. Used by `issuary show --raw` so comments are fetched
    * once and reused. Returns the updated row, or undefined if the issue does
    * not exist.
    */
@@ -218,7 +218,7 @@ export interface Store {
   /**
    * Lists events joined with their issue and repo context, newest first
    * (`detected_at` descending, then `id` descending as a tiebreaker). Powers the
-   * aggregated `lore digest` inbox across all watched repos.
+   * aggregated `issuary digest` inbox across all watched repos.
    *
    * @param filter - Optional narrowing:
    *   - `seen`: only events with this seen state (`false` => unseen inbox).
@@ -250,11 +250,11 @@ export interface Store {
 }
 
 /**
- * Resolves the default database path: `${LORE_HOME ?? ~/.lore}/db.sqlite`.
+ * Resolves the default database path: `${ISSUARY_HOME ?? ~/.issuary}/db.sqlite`.
  * The only point where the store reads the environment.
  */
 export function defaultDbPath(): string {
-  const home = process.env.LORE_HOME ?? join(homedir(), ".lore");
+  const home = process.env.ISSUARY_HOME ?? join(homedir(), ".issuary");
   return join(home, "db.sqlite");
 }
 

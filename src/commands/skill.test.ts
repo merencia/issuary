@@ -21,7 +21,7 @@ describe("runSkill", () => {
   });
 
   it("returns the structured payload with --json (format defaults to claude)", async () => {
-    const dir = join(tmpdir(), "lore-skill-json");
+    const dir = join(tmpdir(), "issuary-skill-json");
     const json = (await runSkill({ json: true, dir })) as SkillJson;
     expect(json).toEqual({
       name: SKILL_NAME,
@@ -48,7 +48,7 @@ describe("runSkill", () => {
     let dir: string;
 
     beforeEach(async () => {
-      dir = await mkdtemp(join(tmpdir(), "lore-skill-"));
+      dir = await mkdtemp(join(tmpdir(), "issuary-skill-"));
     });
 
     afterEach(async () => {
@@ -84,14 +84,14 @@ describe("runSkill", () => {
     let dir: string;
 
     beforeEach(async () => {
-      dir = await mkdtemp(join(tmpdir(), "lore-agents-"));
+      dir = await mkdtemp(join(tmpdir(), "issuary-agents-"));
     });
 
     afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     });
 
-    it("creates AGENTS.md with a delimited lore section", async () => {
+    it("creates AGENTS.md with a delimited issuary section", async () => {
       const result = (await runSkill({ install: true, format: "agents", dir })) as SkillInstallResult;
       const expectedPath = join(dir, "AGENTS.md");
       expect(result.format).toBe("agents");
@@ -103,7 +103,7 @@ describe("runSkill", () => {
       expect(content).toContain(SKILL_MD);
     });
 
-    it("is idempotent: running twice yields exactly one lore section", async () => {
+    it("is idempotent: running twice yields exactly one issuary section", async () => {
       const path = join(dir, "AGENTS.md");
       await runSkill({ install: true, format: "agents", dir });
       const second = (await runSkill({ install: true, format: "agents", dir })) as SkillInstallResult;
@@ -125,12 +125,12 @@ describe("runSkill", () => {
       expect(content).toContain(SKILL_MD);
     });
 
-    it("replaces only the lore section, leaving surrounding content intact", async () => {
+    it("replaces only the issuary section, leaving surrounding content intact", async () => {
       const path = join(dir, "AGENTS.md");
       await writeFile(path, "# Top\n", "utf8");
       await runSkill({ install: true, format: "agents", dir });
       const afterFirst = await readFile(path, "utf8");
-      // Append something below the lore section, then re-install.
+      // Append something below the issuary section, then re-install.
       await writeFile(path, `${afterFirst}\n# Bottom\n`, "utf8");
       await runSkill({ install: true, format: "agents", dir });
       const content = await readFile(path, "utf8");

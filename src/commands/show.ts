@@ -94,7 +94,7 @@ async function resolveComments(
 }
 
 /**
- * Core action for `lore show`: validates the target, looks up the repo and
+ * Core action for `issuary show`: validates the target, looks up the repo and
  * issue, and assembles a {@link ShowResult}. With `--raw`, the full body and
  * comments are included, fetching and caching comments on demand.
  *
@@ -114,12 +114,12 @@ export async function runShow(
 
   const repo = store.getRepoByFullName(fullName);
   if (!repo) {
-    throw new ShowCommandError(`Repo "${fullName}" is not watched. Add it with \`lore add ${fullName}\` first.`);
+    throw new ShowCommandError(`Repo "${fullName}" is not watched. Add it with \`issuary add ${fullName}\` first.`);
   }
 
   const issue = store.getIssue(repo.id, number);
   if (!issue) {
-    throw new ShowCommandError(`Issue ${fullName}#${number} is not in the local store. Run \`lore sync\` first.`);
+    throw new ShowCommandError(`Issue ${fullName}#${number} is not in the local store. Run \`issuary sync\` first.`);
   }
 
   const result: ShowResult = {

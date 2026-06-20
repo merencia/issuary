@@ -74,7 +74,7 @@ describe("runDigest", () => {
   let store: Store;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "lore-digest-"));
+    dir = mkdtempSync(join(tmpdir(), "issuary-digest-"));
     store = openStore(join(dir, "db.sqlite"));
   });
 

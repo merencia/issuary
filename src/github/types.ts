@@ -17,7 +17,7 @@ export interface RepoRef {
 /**
  * Basic repository metadata returned by {@link GitHubClient.getRepo}.
  *
- * Only the fields lore needs to confirm a repo exists and resolve its canonical
+ * Only the fields issuary needs to confirm a repo exists and resolve its canonical
  * `owner/name`. The API returns far more; the rest is ignored.
  */
 export interface RepoInfo {
@@ -38,7 +38,7 @@ export type IssueState = "open" | "closed";
 export type IssueStateReason = "completed" | "not_planned" | null;
 
 /**
- * A GitHub issue mapped to the lean shape lore stores and renders.
+ * A GitHub issue mapped to the lean shape issuary stores and renders.
  *
  * Pull requests are filtered out upstream, so this only ever represents a real
  * issue. `state_reason` and `labels` are copied verbatim from the API and never
@@ -70,7 +70,7 @@ export interface NormalizedIssue {
 }
 
 /**
- * A GitHub issue comment mapped to the lean shape lore stores.
+ * A GitHub issue comment mapped to the lean shape issuary stores.
  */
 export interface NormalizedComment {
   /** Comment id, unique across the repo. */
@@ -116,7 +116,7 @@ export interface ListIssuesOptions {
 }
 
 /**
- * The GitHub REST client lore uses for sync and show.
+ * The GitHub REST client issuary uses for sync and show.
  *
  * Built by {@link createGitHubClient}. Holds no mutable per-request state other
  * than the most recently observed {@link RateLimit}.
