@@ -53,6 +53,16 @@ export interface Issue {
 }
 
 /**
+ * An issue augmented with its owning repo's `full_name`, as returned by
+ * {@link Store.queryIssues}. Kept separate from {@link Issue} so the base type is
+ * not polluted with join-only columns.
+ */
+export interface IssueWithRepo extends Issue {
+  /** The owning repo's `owner/name`. */
+  repoFullName: string;
+}
+
+/**
  * A change detected on an issue since the last sync.
  */
 export interface IssueEvent {

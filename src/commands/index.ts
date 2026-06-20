@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { addCommand } from "./add.js";
 import { compactCommand } from "./compact.js";
 import { digestCommand } from "./digest.js";
+import { issuesCommand } from "./issues.js";
 import { listCommand } from "./list.js";
 import { loginCommand } from "./login.js";
 import { logoutCommand } from "./logout.js";
@@ -28,6 +29,7 @@ export function registerCommands(program: Command): void {
   program.addCommand(protocolCommand());
   program.addCommand(digestCommand());
   program.addCommand(repoDigestCommand());
+  program.addCommand(issuesCommand());
   program.addCommand(showCommand());
   program.addCommand(skillCommand());
   program.addCommand(syncCommand());

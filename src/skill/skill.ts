@@ -61,7 +61,9 @@ digest, and use GitHub's MCP for live, raw issue access.
    form). It defines what \`compact\` and \`compact_stale\` mean and exactly when to
    reuse versus regenerate a compact. Follow it.
 2. Find work: \`issuary compact list --pending --json\` lists issues that have no
-   compact or whose compact went stale.
+   compact or whose compact went stale. To read the existing memory with filters
+   (state, repo, label, author, since, search, compaction), use \`issuary issues
+   --json\`; it returns the matched issues with their compacts and flags.
 3. Read the raw issue: \`issuary show <owner/repo>#<n> --raw --json\` returns the raw
    body and comments to summarize.
 4. Write a compact in the canonical format (frontmatter copied from the API, body

@@ -119,10 +119,13 @@ issuary sync
 # 3. See what changed everywhere, as an aggregated inbox.
 issuary digest
 
-# 4. Get the full project-wide view of one repo's issues.
+# 4. List what is open right now, across all repos (read-only, no API calls).
+issuary issues
+
+# 5. Get the full project-wide view of one repo's issues.
 issuary repo-digest facebook/react
 
-# 5. Read a single issue (compact if present, otherwise raw body).
+# 6. Read a single issue (compact if present, otherwise raw body).
 issuary show facebook/react#123
 
 # Read the same issue's full raw body and comments.
@@ -137,6 +140,15 @@ All commands accept `--json`, which prints a single JSON document to stdout and
 suppresses the human formatting. Expected, user-facing errors (a malformed
 argument, an unwatched repo, a missing issue) print a message to stderr and exit
 with a non-zero status.
+
+Four commands answer four different questions, so it helps to keep them apart:
+
+- `issuary list` lists the **repos** you watch.
+- `issuary issues` is the **filterable issue list**: "what issues match these
+  filters right now?" (state, repo, label, author, since, search, compaction).
+- `issuary digest` is the **inbox**: "what changed since I last looked?"
+- `issuary repo-digest` is **one project's full memory**: every issue of a single
+  repo, compacted where possible.
 
 ### `issuary add <owner/repo>`
 
@@ -204,6 +216,98 @@ Options:
 - `--json` emits `{ "mode": "inbox" | "since" | "all", "total": number, "repos": [ { "repo", "groups": [ { "type", "events": [...] } ] } ] }`.
 
 Local only, no token required.
+
+### `issuary issues`
+
+List issues across watched repos, with filters. Read-only: it never calls the
+GitHub API and never changes local state (it does not mark anything seen). With
+no flags it shows OPEN issues across all watched repos, sorted by most recently
+updated, grouped by repo, with a count header. Local only, no token required.
+
+Options:
+
+- `--state <open|closed|all>`: which issues to include (default `open`).
+- `--repo <owner/repo>`: scope to a watched repo. Repeatable to pass several.
+- `--label <name>`: match issues carrying any of these labels. Repeatable; the
+  labels are OR-ed (an issue matches if it has at least one).
+- `--author <login>`: restrict to issues opened by this user.
+- `--state-reason <completed|not_planned>`: restrict by GitHub's close reason.
+- `--since <when>`: only issues with `updated_at >=` an ISO date or a relative
+  duration (`Nd` / `Nh`, e.g. `7d`, `24h`).
+- `--search <text>`: case-insensitive substring match on the issue title.
+- `--uncompacted` | `--stale` | `--compacted`: filter by compaction state.
+  Mutually exclusive (passing more than one is an error).
+- `--sort <updated|created|number>` (default `updated`) and
+  `--order <asc|desc>` (default `desc`).
+- `--limit <n>`: cap the number of issues returned.
+- `--json` (see shape below).
+
+Examples:
+
+```sh
+# What is open right now, everywhere.
+issuary issues
+
+# Everything, including closed.
+issuary issues --state all
+
+# One project, only bugs.
+issuary issues --repo facebook/react --label bug
+
+# Issues touched in the last week.
+issuary issues --since 7d
+
+# Issues whose memory still needs writing.
+issuary issues --uncompacted
+
+# Find by title, as JSON for an agent.
+issuary issues --search "timezone" --json
+```
+
+Sample human output:
+
+```
+3 open issues across 2 repos (filter: labels=bug)
+
+facebook/react:
+  #321  [open]  Hooks break with timezones {bug, timezone} (4c) (uncompacted)
+  #204  [open]  Crash on hydrate {bug} (2c)
+
+octocat/hello-world:
+  #12   [open]  Typo in error message {bug}
+```
+
+The `{...}` are labels, `(Nc)` is the comment count, and a trailing `(stale)` or
+`(uncompacted)` marks issues whose compact is missing or out of date (nothing is
+shown when the compact is fresh).
+
+`--json` emits:
+
+```json
+{
+  "filters": {
+    "state": "open", "repos": null, "labels": ["bug"], "author": null,
+    "stateReason": null, "since": null, "search": null, "compaction": null,
+    "sort": "updated", "order": "desc", "limit": null
+  },
+  "summary": { "total": 3, "open": 3, "closed": 0, "repos": 2 },
+  "issues": [
+    {
+      "repo": "facebook/react", "number": 321, "title": "Hooks break with timezones",
+      "state": "open", "stateReason": null, "author": "ann",
+      "labels": ["bug", "timezone"], "commentCount": 4,
+      "createdAt": "...", "updatedAt": "...",
+      "compact": null, "compactTldr": null, "compacted": false, "stale": false,
+      "refs": ["#204"]
+    }
+  ]
+}
+```
+
+The `compact` field carries the full canonical compact when one exists,
+`compactTldr` its one-line headline, and `compacted` / `stale` say whether it is
+fresh. Raw bodies and comments are intentionally not included here; use
+`issuary show <repo>#<n> --raw` for those.
 
 ### `issuary repo-digest <repo>`
 
@@ -306,6 +410,19 @@ comment thread. `issuary` is not another raw-issue reader: its value is the
 persistent, compacted memory of issues plus the cross-repo digest of what changed
 since you last looked. Use GitHub's MCP for live, raw access, and `issuary` for the
 distilled memory and the "what changed" digest.
+
+### Reading the memory with filters
+
+`issuary issues --json` is the filtered entry point into the memory. Pass any of
+the filters (`--state`, `--repo`, `--label`, `--author`, `--since`, `--search`,
+`--uncompacted` / `--stale` / `--compacted`) and you get back the matching issues
+with their `compact`, `compactTldr`, `refs`, and the `compacted` / `stale` flags,
+without raw bodies. It complements the other two read paths:
+`issuary repo-digest <repo> --json` for one project's full dump, and
+`issuary show <repo>#<n> --json` for a single issue (add `--raw` for the body and
+comments). Reach for `issues --json` when you want a slice of the memory ("open
+bugs across all repos", "anything touched this week", "what still needs
+compacting") rather than a whole project or a single issue.
 
 ### Teaching an agent to use issuary
 
