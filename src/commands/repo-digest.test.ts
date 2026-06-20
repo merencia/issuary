@@ -143,6 +143,18 @@ describe("repo-digest actions", () => {
       expect(result.summary.total).toBe(0);
     });
 
+    it("includes each issue's refs in the result", () => {
+      seed({ number: 1, rawBody: "raw body 1" });
+      seed({ number: 2, rawBody: "raw body 2" });
+      const issue1 = store.getIssue(repoId, 1)!;
+      store.replaceIssueRefs(issue1.id, ["#12", "owner/repo#45"]);
+
+      const result = runRepoDigest(store, "octo/demo");
+      const byNumber = new Map(result.issues.map((i) => [i.number, i]));
+      expect(byNumber.get(1)!.refs).toEqual(["#12", "owner/repo#45"]);
+      expect(byNumber.get(2)!.refs).toEqual([]);
+    });
+
     it("throws RepoDigestError for an unwatched repo", () => {
       expect(() => runRepoDigest(store, "octo/missing")).toThrow(RepoDigestError);
       expect(() => runRepoDigest(store, "octo/missing")).toThrow(/not watched/);

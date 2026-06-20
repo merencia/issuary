@@ -244,6 +244,37 @@ describe("runSync", () => {
     expect(stored?.rawBody).toBe("raw md");
   });
 
+  it("extracts explicit references from an issue body on sync", async () => {
+    const body = "Dup of #12, blocked by owner/repo#45, fixed in PR #99. This is #5 itself.";
+    const client = fakeClient([{ status: "ok", issues: [makeIssue({ number: 5, body })], etag: null }]);
+
+    await runSync({ store, client, now: () => NOW }, [repo]);
+
+    const issue = store.getIssue(repo.id, 5);
+    expect(issue).toBeDefined();
+    const refs = store.listIssueRefs(issue!.id).map((r) => r.target);
+    expect(refs).toEqual(["owner/repo#45", "#99", "#12"]);
+    // The issue's own number (#5) is not stored as a self-reference.
+    expect(refs).not.toContain("#5");
+  });
+
+  it("clears stale refs when a re-synced body drops a reference", async () => {
+    const client = fakeClient([
+      { status: "ok", issues: [makeIssue({ number: 5, body: "see #12 and #20" })], etag: null },
+      {
+        status: "ok",
+        issues: [makeIssue({ number: 5, body: "only #20 now", updated_at: "2024-02-01T00:00:00Z" })],
+        etag: null,
+      },
+    ]);
+
+    await runSync({ store, client, now: () => NOW }, [repo]);
+    await runSync({ store, client, now: () => NOW }, [repo]);
+
+    const issue = store.getIssue(repo.id, 5);
+    expect(store.listIssueRefs(issue!.id).map((r) => r.target)).toEqual(["#20"]);
+  });
+
   it("syncs multiple repos and returns one result each", async () => {
     const repo2 = store.insertRepo({ owner: "octo", name: "two", fullName: "octo/two" });
     const client = fakeClient([

@@ -1,4 +1,5 @@
 import type { GitHubClient, NormalizedIssue } from "../github/index.js";
+import { parseRefs } from "../refs/index.js";
 import type { Issue, Repo, Store } from "../store/index.js";
 
 /** Per-repo outcome of a sync run, suitable for both human and JSON output. */
@@ -142,6 +143,11 @@ async function syncRepo(store: Store, client: GitHubClient, repo: Repo, now: () 
         compactStale: stored?.compactStale ?? false,
         compactedAt: stored?.compactedAt ?? null,
       });
+
+      // Extract explicit references from the raw body and persist them. Runs in
+      // the same per-repo transaction; idempotent across syncs (replace clears
+      // first), so a re-synced body never accumulates stale refs.
+      store.replaceIssueRefs(upserted.id, parseRefs(incoming.body, incoming.number));
 
       for (const type of events) {
         store.insertEvent(upserted.id, type, detectedAt);
