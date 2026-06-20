@@ -77,7 +77,17 @@ export function formatSyncResult(result: SyncResult): string {
     if (r.closed > 0) parts.push(`${r.closed} closed`);
     if (r.reopened > 0) parts.push(`${r.reopened} reopened`);
     if (r.commented > 0) parts.push(`${r.commented} new comments`);
-    lines.push(`${r.repo}: ${parts.length > 0 ? parts.join(", ") : "no changes"}`);
+    if (parts.length > 0) {
+      lines.push(`${r.repo}: ${parts.join(", ")}`);
+    } else if (r.processed > 0) {
+      // Issues were fetched and mirrored but produced no noteworthy events. This
+      // is the common case on a first sync of a repo whose issues are all closed
+      // (closed issues are imported as a silent baseline). Saying "no changes"
+      // here would wrongly imply nothing was stored.
+      lines.push(`${r.repo}: no new activity (${r.processed} issues synced)`);
+    } else {
+      lines.push(`${r.repo}: no changes`);
+    }
   }
   return lines.join("\n");
 }
