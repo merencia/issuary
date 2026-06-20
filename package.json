@@ -1,6 +1,6 @@
 {
   "name": "issuary",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI to monitor and AI-compact GitHub issues across multiple repositories",
   "license": "ISC",
   "author": "Lucas Merencia <lucas.merencia@gmail.com>",
