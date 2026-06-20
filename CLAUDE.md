@@ -85,6 +85,9 @@ open_questions: <o que ficou em aberto | null>
 preenche só os campos textuais. Campo textual vazio é `null`. Refs preservadas
 literais. Soft cap ~8 linhas no corpo. Não inventar `state_reason`.
 
+Especificação canônica completa (campo a campo, regras e exemplos):
+[docs/compact-format.md](./docs/compact-format.md).
+
 ## Estilo de código (segue sidequest + node-cron)
 
 - **TypeScript ESM.** `"type": "module"`. Imports de builtins com prefixo `node:`.
