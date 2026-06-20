@@ -105,6 +105,14 @@ export interface Store {
   /** Lists issues for a repo, ordered by issue number ascending. */
   listIssues(repoId: number): Issue[];
 
+  /**
+   * Persists a compact for an issue keyed by `(repoId, number)`: sets `compact`
+   * and `compact_tldr`, clears `compact_stale`, and stamps `compacted_at` with
+   * the current time. Returns the updated row, or undefined if the issue does
+   * not exist.
+   */
+  setCompact(repoId: number, number: number, compact: { compact: string; tldr: string }): Issue | undefined;
+
   /** Closes the database connection. */
   close(): void;
 }
@@ -180,6 +188,12 @@ export function openStore(dbPath: string): Store {
   );
   const getIssueStmt = db.prepare<[number, number]>(`SELECT * FROM issues WHERE repo_id = ? AND number = ?`);
   const listIssuesStmt = db.prepare<[number]>(`SELECT * FROM issues WHERE repo_id = ? ORDER BY number`);
+  const setCompactStmt = db.prepare<[string, string, string, number, number]>(
+    `UPDATE issues
+        SET compact = ?, compact_tldr = ?, compact_stale = 0, compacted_at = ?
+      WHERE repo_id = ? AND number = ?
+     RETURNING *`,
+  );
 
   return {
     db,
@@ -238,6 +252,14 @@ export function openStore(dbPath: string): Store {
     listIssues(repoId: number): Issue[] {
       const rows = listIssuesStmt.all(repoId) as IssueRow[];
       return rows.map(rowToIssue);
+    },
+
+    setCompact(repoId: number, number: number, compact: { compact: string; tldr: string }): Issue | undefined {
+      const compactedAt = new Date().toISOString();
+      const row = setCompactStmt.get(compact.compact, compact.tldr, compactedAt, repoId, number) as
+        | IssueRow
+        | undefined;
+      return row ? rowToIssue(row) : undefined;
     },
 
     close(): void {
