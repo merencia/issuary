@@ -46,6 +46,15 @@ when you are asked to keep a project's issue knowledge ("the lore") compacted an
 current. If a compact exists and is fresh, read it instead of refetching the
 issue.
 
+## lore vs GitHub's MCP
+
+These are complementary, not competing. GitHub's MCP server gives live, raw
+access to issues: use it when you need the current, unfiltered state of an issue
+or its comments. lore is NOT another raw-issue reader. Its value is the
+persistent, compacted MEMORY of issues plus the cross-repo digest of what changed
+since you last looked. Use lore for the distilled memory and the "what changed"
+digest, and use GitHub's MCP for live, raw issue access.
+
 ## Core loop
 
 1. Read the contract first: run \`lore protocol\` (add \`--json\` for the machine
@@ -74,14 +83,24 @@ this skill only points you at them.
 ${COMPACTION_PROTOCOL}
 `;
 
+/**
+ * The supported install formats for the skill.
+ *
+ * - `claude`: a `SKILL.md` under a Claude Code skills directory (the default).
+ * - `agents`: a delimited, idempotent section inside an `AGENTS.md` project file.
+ */
+export type SkillFormat = "claude" | "agents";
+
 /** A structured view of the skill, for machine consumption via `--json`. */
 export interface SkillJson {
   /** The skill name (frontmatter `name` and install directory). */
   name: string;
   /** The skill description (frontmatter `description`). */
   description: string;
-  /** Where `--install` would write the `SKILL.md`. */
+  /** Where `--install` would write the skill, for the selected format. */
   path: string;
-  /** The full `SKILL.md` document text. */
+  /** The full skill document text. */
   content: string;
+  /** The install format this payload describes. */
+  format: SkillFormat;
 }

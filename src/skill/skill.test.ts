@@ -26,6 +26,12 @@ describe("SKILL_MD", () => {
     expect(SKILL_MD).toContain("lore compact set <owner/repo>#<n> --from-file <file>");
   });
 
+  it("explains the lore vs GitHub MCP positioning so it stays complementary", () => {
+    expect(SKILL_MD).toContain("GitHub's MCP");
+    expect(SKILL_MD).toContain("live, raw");
+    expect(SKILL_MD).toContain("what changed");
+  });
+
   it("tells the agent to defer to lore --help and lore protocol for exact flags", () => {
     expect(SKILL_MD).toContain("lore --help");
     expect(SKILL_MD).toContain("lore protocol");

@@ -202,11 +202,46 @@ self-describing usage that an agent can read to discover how compaction works.
 
 - `--json` emits `{ "protocol": string, "compactFormat": { "doc", "frontmatterFields", "bodyFields", "persistCommand" } }`.
 
+### `lore skill`
+
+Emit lore's neutral agent skill, or install it for an AI agent. The content is
+vendor-neutral: it teaches an agent what lore is, when to reach for it, and where
+to find the exact contract (`lore protocol`, `lore --help`).
+
+- No flags: print the skill to stdout. This is the universal path: paste it into
+  any agent's system prompt or rules file.
+- `--install --format claude` (the default format): write
+  `~/.claude/skills/lore/SKILL.md` (override the skills root with `--dir` or
+  `CLAUDE_SKILLS_DIR`).
+- `--install --format agents`: insert or replace a delimited, idempotent lore
+  section in an `AGENTS.md` at the project root (override the directory with
+  `--dir`). Running it twice yields exactly one section; existing unrelated
+  content is preserved.
+- `--json` emits `{ "name", "description", "path", "content", "format" }`.
+
 ## For AI agents
 
 `lore` does not call any LLM itself. It stores raw issue content, exposes which
 issues need a summary, and accepts the summary back. The agent that consumes the
 tool is the compaction CPU; `lore` only stores and serves.
+
+### lore vs GitHub's MCP
+
+They are complementary, not competing. GitHub's MCP server gives live, raw access
+to issues, use it when you need the current, unfiltered state of an issue or its
+comment thread. `lore` is not another raw-issue reader: its value is the
+persistent, compacted memory of issues plus the cross-repo digest of what changed
+since you last looked. Use GitHub's MCP for live, raw access, and `lore` for the
+distilled memory and the "what changed" digest.
+
+### Teaching an agent to use lore
+
+`lore skill` emits a neutral skill document that explains all of this. Print it
+(`lore skill`) and paste it into any agent's system prompt or rules file, or
+install it: `lore skill --install --format claude` writes
+`~/.claude/skills/lore/SKILL.md` for Claude Code, and
+`lore skill --install --format agents` inserts an idempotent lore section into a
+project `AGENTS.md`. See the [`lore skill`](#lore-skill) command reference.
 
 Each issue carries two fields that drive the workflow:
 
