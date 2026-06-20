@@ -44,7 +44,9 @@ export function readStoredToken(home: string): string | null {
  * @param token - The GitHub access token to store.
  */
 export function writeStoredToken(home: string, token: string): void {
-  mkdirSync(home, { recursive: true });
+  // 0700 so a stored credential is not even listable by other local users; the
+  // file itself is 0600. mode only applies on creation, which is fine here.
+  mkdirSync(home, { recursive: true, mode: 0o700 });
   const path = credentialsPath(home);
   const data: CredentialsFile = { github_token: token };
   writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });

@@ -184,12 +184,13 @@ export async function pollForAccessToken(options: PollForAccessTokenOptions): Pr
         // The user has not finished authorizing yet; keep the same interval.
         continue;
       case "slow_down":
-        // GitHub asks us to back off. Honor a returned interval if present,
-        // otherwise bump the current one by the standard 5 seconds.
-        intervalSeconds =
-          typeof body.interval === "number" && body.interval > 0
-            ? body.interval
-            : intervalSeconds + SLOW_DOWN_INCREMENT_SECONDS;
+        // GitHub asks us to back off. Always bump by at least the standard 5s,
+        // and honor a larger returned interval if present. Never go below the
+        // current interval, even if GitHub returns a smaller value.
+        intervalSeconds = Math.max(
+          intervalSeconds + SLOW_DOWN_INCREMENT_SECONDS,
+          typeof body.interval === "number" ? body.interval : 0,
+        );
         continue;
       case "expired_token":
         throw new AuthError("The device code expired before login was authorized. Run `lore login` again.");

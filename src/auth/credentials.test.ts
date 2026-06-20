@@ -32,6 +32,13 @@ describe("credentials store", () => {
     expect(mode).toBe(0o600);
   });
 
+  it("creates the home directory with mode 0700", () => {
+    const nested = join(home, "fresh", "lore");
+    writeStoredToken(nested, "ghp_secret");
+    const mode = statSync(nested).mode & 0o777;
+    expect(mode).toBe(0o700);
+  });
+
   it("returns null when no token is stored", () => {
     expect(readStoredToken(home)).toBeNull();
   });
