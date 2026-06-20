@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SCOPE, resolveClientId, resolveScope } from "./client-id.js";
+import { DEFAULT_GITHUB_CLIENT_ID, DEFAULT_SCOPE, resolveClientId, resolveScope } from "./client-id.js";
 import { AuthError } from "./errors.js";
 
 describe("resolveClientId", () => {
@@ -11,15 +11,19 @@ describe("resolveClientId", () => {
     expect(resolveClientId({ ISSUARY_GITHUB_CLIENT_ID: "  cid123  " })).toBe("cid123");
   });
 
-  it("throws AuthError when no client id is configured", () => {
-    // DEFAULT_GITHUB_CLIENT_ID is empty in the repo, so an empty env throws.
-    expect(() => resolveClientId({})).toThrow(AuthError);
+  it("falls back to the baked client id when no env override is set", () => {
+    expect(DEFAULT_GITHUB_CLIENT_ID).not.toBe("");
+    expect(resolveClientId({})).toBe(DEFAULT_GITHUB_CLIENT_ID);
+  });
+
+  it("throws AuthError when neither env nor a baked default is configured", () => {
+    expect(() => resolveClientId({}, "")).toThrow(AuthError);
   });
 
   it("mentions ISSUARY_GITHUB_CLIENT_ID in the error", () => {
     let message = "";
     try {
-      resolveClientId({});
+      resolveClientId({}, "");
     } catch (err) {
       message = (err as Error).message;
     }

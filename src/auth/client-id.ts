@@ -1,16 +1,13 @@
 import { AuthError } from "./errors.js";
 
 /**
- * Public client id of the registered GitHub OAuth App used for the device flow.
+ * Public client id of the registered GitHub app used for the device flow.
  *
- * MAINTAINER: this is intentionally empty. Device login does not work until the
- * maintainer registers a GitHub OAuth App with the device flow enabled
- * (https://github.com/settings/applications/new, then turn on "Enable Device
- * Flow") and bakes its PUBLIC client id here. A device-flow client id is not a
- * secret, so it is safe to commit. Users can override it at runtime with the
- * `ISSUARY_GITHUB_CLIENT_ID` environment variable.
+ * A device-flow client id is not a secret, so it is safe to commit. Users can
+ * override it at runtime with the `ISSUARY_GITHUB_CLIENT_ID` environment
+ * variable (for example to point at their own app or a GitHub Enterprise one).
  */
-export const DEFAULT_GITHUB_CLIENT_ID = "";
+export const DEFAULT_GITHUB_CLIENT_ID = "Ov23liOws9jSkjjC2PAL";
 
 /** Default OAuth scope requested by `issuary login`; `repo` so private repos work. */
 export const DEFAULT_SCOPE = "repo";
@@ -22,18 +19,21 @@ export const DEFAULT_SCOPE = "repo";
  * {@link DEFAULT_GITHUB_CLIENT_ID}.
  *
  * @param env - Environment to read from; defaults to `process.env`.
+ * @param defaultClientId - Baked-in fallback; defaults to {@link DEFAULT_GITHUB_CLIENT_ID}.
  * @returns The resolved client id.
  * @throws {AuthError} When no client id is configured.
  */
-export function resolveClientId(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveClientId(
+  env: NodeJS.ProcessEnv = process.env,
+  defaultClientId: string = DEFAULT_GITHUB_CLIENT_ID,
+): string {
   const fromEnv = (env.ISSUARY_GITHUB_CLIENT_ID ?? "").trim();
-  const clientId = fromEnv || DEFAULT_GITHUB_CLIENT_ID;
+  const clientId = fromEnv || defaultClientId;
   if (clientId === "") {
     throw new AuthError(
       "No GitHub OAuth client id is configured, so `issuary login` cannot run. " +
         "Set ISSUARY_GITHUB_CLIENT_ID to a GitHub OAuth App client id (device flow enabled), " +
-        "or use `export GITHUB_TOKEN=...` instead. " +
-        "Maintainers: bake the app's public client id into DEFAULT_GITHUB_CLIENT_ID.",
+        "or use `export GITHUB_TOKEN=...` instead.",
     );
   }
   return clientId;
